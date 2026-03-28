@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import Link from 'next/link'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -123,7 +124,7 @@ export default function ClientsPage() {
         </Card>
       )}
 
-      {/* Client List*/}
+      {/* Client List */}
       {loading ? (
         <div className="text-center text-gray-400 py-12">Loading...</div>
       ) : filtered.length === 0 ? (
@@ -131,17 +132,19 @@ export default function ClientsPage() {
       ) : (
         <div className="space-y-3">
           {filtered.map(c => (
-            <Card key={c.id} className="cursor-pointer hover:shadow-md transition-shadow">
-              <CardContent className="flex justify-between items-center p-4">
-                <div>
-                  <p className="font-semibold text-gray-800">{c.name}</p>
-                  <p className="text-sm text-gray-500">{c.phone} · {c.language} · Household: {c.household_size}</p>
-                </div>
-                <Badge variant={c.is_active ? 'default' : 'secondary'}>
-                  {c.is_active ? 'Active' : 'Inactive'}
-                </Badge>
-              </CardContent>
-            </Card>
+            <Link href={`/clients/${c.id}`} key={c.id}>
+              <Card className="cursor-pointer hover:shadow-md transition-shadow">
+                <CardContent className="flex justify-between items-center p-4">
+                  <div>
+                    <p className="font-semibold text-gray-800">{c.name}</p>
+                    <p className="text-sm text-gray-500">{c.phone} · {c.language} · Household: {c.household_size}</p>
+                  </div>
+                  <Badge variant={c.is_active ? 'default' : 'secondary'}>
+                    {c.is_active ? 'Active' : 'Inactive'}
+                  </Badge>
+                </CardContent>
+              </Card>
+            </Link>
           ))}
         </div>
       )}
