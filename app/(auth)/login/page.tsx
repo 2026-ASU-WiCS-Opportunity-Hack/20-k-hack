@@ -20,10 +20,7 @@ export default function LoginPage() {
         <p className="text-gray-500 text-sm mb-8">
           Crisis Family Case Management Platform
         </p>
-        <Button
-          onClick={handleGoogleLogin}
-          className="w-full"
-        >
+        <Button onClick={handleGoogleLogin} className="w-full">
           Login with Google
         </Button>
       </div>
