@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
+import { CheckCircle2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -21,19 +22,29 @@ type Client = {
   notes: string
 }
 
+type FollowUp = {
+  id: string
+  note: string
+  category: string
+  due_date: string
+  is_done: boolean
+  clients: { name: string } | null
+}
+
 export default function ClientsPage() {
   const [showForm, setShowForm] = useState(false)
   const [search, setSearch] = useState('')
   const [clients, setClients] = useState<Client[]>([])
+  const [followUps, setFollowUps] = useState<FollowUp[]>([])
   const [loading, setLoading] = useState(true)
   const [form, setForm] = useState({
     name: '', date_of_birth: '', phone: '',
     email: '', household_size: '', language: 'English', notes: ''
   })
 
-  // Call the client
   useEffect(() => {
     fetchClients()
+    fetchFollowUps()
   }, [])
 
   const fetchClients = async () => {
@@ -45,7 +56,20 @@ export default function ClientsPage() {
     setLoading(false)
   }
 
-  // Save Client
+  const fetchFollowUps = async () => {
+    const { data } = await supabase
+      .from('follow_ups')
+      .select('*, clients(name)')
+      .eq('is_done', false)
+      .order('due_date', { ascending: true })
+    setFollowUps(data || [])
+  }
+
+  const markDone = async (id: string) => {
+    await supabase.from('follow_ups').update({ is_done: true }).eq('id', id)
+    fetchFollowUps()
+  }
+
   const saveClient = async () => {
     if (!form.name) return
     await supabase.from('clients').insert([{
@@ -62,7 +86,6 @@ export default function ClientsPage() {
     fetchClients()
   }
 
-  // Search Engine
   const filtered = clients.filter(c =>
     c.name.toLowerCase().includes(search.toLowerCase())
   )
@@ -81,7 +104,7 @@ export default function ClientsPage() {
         className="mb-6"
       />
 
-      {/* Registeration Form */}
+      {/* 등록 폼 */}
       {showForm && (
         <Card className="mb-6">
           <CardHeader>
@@ -124,6 +147,37 @@ export default function ClientsPage() {
         </Card>
       )}
 
+      {/* Follow-up 할 일 목록 */}
+      {followUps.length > 0 && (
+        <div className="mb-8">
+          <h2 className="text-lg font-semibold text-gray-800 mb-3">
+            ⚡ Pending Follow-ups ({followUps.length})
+          </h2>
+          <div className="space-y-2">
+            {followUps.map(f => (
+              <div key={f.id} className="flex items-center justify-between bg-indigo-50 border border-indigo-100 rounded-lg px-4 py-3">
+                <div>
+                  <span className="text-xs font-medium text-indigo-600 bg-indigo-100 px-2 py-0.5 rounded-full mr-2">
+                    {f.category}
+                  </span>
+                  <span className="text-sm text-gray-700">{f.note}</span>
+                  <p className="text-xs text-gray-400 mt-0.5">
+                    {f.clients?.name} · Due {new Date(f.due_date).toLocaleDateString()}
+                  </p>
+                </div>
+                <button
+                  onClick={() => markDone(f.id)}
+                  className="text-gray-400 hover:text-green-500 transition-colors ml-4"
+                  title="Mark as done"
+                >
+                  <CheckCircle2 size={20} />
+                </button>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
       {/* Client List */}
       {loading ? (
         <div className="text-center text-gray-400 py-12">Loading...</div>
@@ -133,8 +187,8 @@ export default function ClientsPage() {
         <div className="space-y-3">
           {filtered.map(c => (
             <Link href={`/clients/${c.id}`} key={c.id}>
-              <Card className="cursor-pointer hover:shadow-md transition-shadow">
-                <CardContent className="flex justify-between items-center p-4">
+              <div className="border rounded-xl cursor-pointer hover:shadow-md transition-shadow bg-white">
+                <div className="flex justify-between items-center p-4">
                   <div>
                     <p className="font-semibold text-gray-800">{c.name}</p>
                     <p className="text-sm text-gray-500">{c.phone} · {c.language} · Household: {c.household_size}</p>
@@ -142,8 +196,8 @@ export default function ClientsPage() {
                   <Badge variant={c.is_active ? 'default' : 'secondary'}>
                     {c.is_active ? 'Active' : 'Inactive'}
                   </Badge>
-                </CardContent>
-              </Card>
+                </div>
+              </div>
             </Link>
           ))}
         </div>

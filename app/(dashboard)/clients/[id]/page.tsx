@@ -30,8 +30,15 @@ type ServiceEntry = {
   notes: string
 }
 
+type FollowUp = {
+  note: string
+  category: string
+  due_days: number
+}
+
 export default function ClientProfilePage() {
-  const { id } = useParams()
+  const params = useParams()
+  const clientId = Array.isArray(params.id) ? params.id[0] : params.id as string
   const router = useRouter()
   const [client, setClient] = useState<Client | null>(null)
   const [services, setServices] = useState<ServiceEntry[]>([])
@@ -40,17 +47,20 @@ export default function ClientProfilePage() {
   const [form, setForm] = useState({
     service_type: '', notes: '', staff_name: ''
   })
+  const [aiLoading, setAiLoading] = useState(false)
+  const [aiResult, setAiResult] = useState<FollowUp[]>([])
+  const [showAiToast, setShowAiToast] = useState(false)
 
   useEffect(() => {
     fetchClient()
     fetchServices()
-  }, [id])
+  }, [clientId])
 
   const fetchClient = async () => {
     const { data } = await supabase
       .from('clients')
       .select('*')
-      .eq('id', id)
+      .eq('id', clientId)
       .single()
     setClient(data)
     setLoading(false)
@@ -60,20 +70,47 @@ export default function ClientProfilePage() {
     const { data } = await supabase
       .from('service_entries')
       .select('*')
-      .eq('client_id', id)
+      .eq('client_id', clientId)
       .order('service_date', { ascending: false })
     setServices(data || [])
+  }
+
+  const detectFollowUps = async (notes: string) => {
+    setAiLoading(true)
+    setShowAiToast(false)
+    try {
+      const res = await fetch('/api/follow-up', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ notes, client_id: clientId })
+      })
+      const data = await res.json()
+      console.log('AI result:', data)
+      if (data.followUps && data.followUps.length > 0) {
+        setAiResult(data.followUps)
+        setShowAiToast(true)
+      }
+    } catch (err) {
+      console.error('AI error:', err)
+    } finally {
+      setAiLoading(false)
+    }
   }
 
   const saveService = async () => {
     if (!form.service_type) return
     await supabase.from('service_entries').insert([{
-      client_id: id,
+      client_id: clientId,
       service_date: new Date().toISOString().split('T')[0],
       service_type: form.service_type,
       staff_name: form.staff_name,
       notes: form.notes,
     }])
+
+    if (form.notes) {
+      await detectFollowUps(form.notes)
+    }
+
     setShowForm(false)
     setForm({ service_type: '', notes: '', staff_name: '' })
     fetchServices()
@@ -84,6 +121,38 @@ export default function ClientProfilePage() {
 
   return (
     <div className="max-w-4xl mx-auto p-6">
+
+      {/* AI 분석 중 */}
+      {aiLoading && (
+        <div className="fixed bottom-6 right-6 bg-white border border-gray-200 rounded-xl shadow p-4 text-sm text-gray-500 z-50">
+          🤖 AI analyzing case note...
+        </div>
+      )}
+
+      {/* AI Follow-up 토스트 */}
+      {showAiToast && aiResult.length > 0 && (
+        <div className="fixed bottom-6 right-6 bg-white border border-indigo-200 rounded-xl shadow-lg p-4 max-w-sm z-50">
+          <div className="flex justify-between items-center mb-3">
+            <p className="font-semibold text-indigo-700 text-sm">
+              ⚡ AI detected {aiResult.length} follow-up{aiResult.length > 1 ? 's' : ''}
+            </p>
+            <button onClick={() => setShowAiToast(false)} className="text-gray-400 hover:text-gray-600 ml-4">✕</button>
+          </div>
+          {aiResult.map((f, i) => (
+            <div key={i} className="bg-indigo-50 rounded-lg p-3 mb-2">
+              <div className="flex justify-between items-center mb-1">
+                <span className="text-xs font-semibold text-indigo-600 bg-indigo-100 px-2 py-0.5 rounded-full">
+                  {f.category}
+                </span>
+                <span className="text-xs text-gray-400">Due in {f.due_days} days</span>
+              </div>
+              <p className="text-sm text-gray-700">{f.note}</p>
+            </div>
+          ))}
+          <p className="text-xs text-gray-400 mt-2">Added to Pending Follow-ups ✓</p>
+        </div>
+      )}
+
       {/* 뒤로가기 */}
       <Button variant="outline" onClick={() => router.push('/clients')} className="mb-4">
         ← Back to Clients
@@ -122,15 +191,30 @@ export default function ClientProfilePage() {
           <CardContent className="grid grid-cols-2 gap-4 pt-4">
             <div>
               <Label>Service Type *</Label>
-              <Input value={form.service_type} onChange={e => setForm({...form, service_type: e.target.value})} placeholder="Food Assistance" />
+              <Input
+                value={form.service_type}
+                onChange={e => setForm({...form, service_type: e.target.value})}
+                placeholder="Food Assistance"
+              />
             </div>
             <div>
               <Label>Staff Name</Label>
-              <Input value={form.staff_name} onChange={e => setForm({...form, staff_name: e.target.value})} placeholder="Staff A" />
+              <Input
+                value={form.staff_name}
+                onChange={e => setForm({...form, staff_name: e.target.value})}
+                placeholder="Staff A"
+              />
             </div>
             <div className="col-span-2">
               <Label>Notes</Label>
-              <Input value={form.notes} onChange={e => setForm({...form, notes: e.target.value})} placeholder="Service notes..." />
+              <Input
+                value={form.notes}
+                onChange={e => setForm({...form, notes: e.target.value})}
+                placeholder="e.g. Client mentioned she hasn't eaten today. Will check food assistance next week."
+              />
+              <p className="text-xs text-gray-400 mt-1">
+                💡 Describe what happened and any planned actions — AI will auto-detect follow-ups
+              </p>
             </div>
             <div className="col-span-2 flex gap-2">
               <Button onClick={saveService}>Save</Button>
