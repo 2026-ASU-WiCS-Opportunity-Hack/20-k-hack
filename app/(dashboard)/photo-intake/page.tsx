@@ -21,6 +21,7 @@ function AnalyzingDots() {
 export default function PhotoIntakePage() {
   const router = useRouter();
   const [image, setImage] = useState<string | null>(null);
+  const isMobile = typeof navigator !== "undefined" && /Mobi|Android|iPhone/i.test(navigator.userAgent);
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
@@ -56,7 +57,6 @@ export default function PhotoIntakePage() {
     reader.onloadend = () => {
       const base64 = (reader.result as string).split(",")[1];
       setImage(base64);
-      // ✅ base64 직접 전달 — state 타이밍 문제 없음
       handleExtractWithBase64(base64, mime);
     };
     reader.readAsDataURL(file);
@@ -100,39 +100,73 @@ export default function PhotoIntakePage() {
     <div className="max-w-2xl mx-auto p-8">
       <div className="mb-6">
         <h1 className="text-xl font-semibold text-gray-900">📸 Photo-to-Intake</h1>
-        <p className="text-sm text-gray-500 mt-1">
+        <div className="text-sm text-gray-500 mt-1">
           Upload a photo of a paper intake form — AI will extract all fields automatically.
-        </p>
-        <p className="text-sm text-amber-600 font-medium mt-0.5">
+        </div>
+        <div className="text-sm text-amber-600 font-medium mt-0.5">
           ⚠️ AI may make mistakes — please review all fields before saving.
-        </p>
+        </div>
       </div>
 
       {/* Upload area */}
       <div className="border-2 border-dashed border-gray-200 rounded-xl p-6 text-center mb-6 hover:border-indigo-300 transition-colors">
         <input
+          id="camera-input"
+          type="file"
+          accept="image/*"
+          capture="environment"
+          onChange={handleImageUpload}
+          className="hidden"
+        />
+        <input
+          id="gallery-input"
           type="file"
           accept="image/*"
           onChange={handleImageUpload}
-          className="mb-2"
+          className="hidden"
         />
-        <p className="text-sm text-gray-400">Upload a photo of a paper intake form</p>
+
+        <div className="flex gap-3 justify-center">
+          <button
+            type="button"
+            onClick={() => isMobile
+              ? document.getElementById("camera-input")?.click()
+              : alert("📷 Camera is only supported on mobile devices.")}
+            className="flex items-center gap-2 px-4 py-2.5 rounded-xl border border-indigo-200 bg-indigo-50 text-indigo-700 text-sm font-medium hover:bg-indigo-100 transition-colors"
+          >
+            📷 Camera
+          </button>
+          <button
+            type="button"
+            onClick={() => document.getElementById("gallery-input")?.click()}
+            className="flex items-center gap-2 px-4 py-2.5 rounded-xl border border-gray-200 bg-gray-50 text-gray-700 text-sm font-medium hover:bg-gray-100 transition-colors"
+          >
+            🖼️ Select in files
+          </button>
+        </div>
+
+        <div className="text-xs text-gray-400 mt-3">
+          Take a photo of a paper intake form or upload from your gallery
+        </div>
+
         {image && (
           loading ? <AnalyzingDots /> : (
-            <div className="text-xs text-green-600 mt-2 text-center">✓ Image loaded — fields extracted below</div>
+            <div className="text-xs text-green-600 mt-2 text-center">
+              ✓ Image loaded — fields extracted below
+            </div>
           )
         )}
       </div>
 
       {/* Form */}
       <div className="space-y-3 bg-white border border-gray-100 rounded-xl p-5 shadow-sm">
-        <p className="text-xs font-medium text-gray-500 mb-4">
+        <div className="text-xs font-medium text-gray-500 mb-4">
           {loading
             ? "🤖 AI is analyzing your form..."
             : formData.name
             ? "Review and edit extracted fields:"
             : "Fields will appear after image upload"}
-        </p>
+        </div>
         {Object.entries(formData).map(([key, value]) => (
           <div key={key}>
             <label className="text-xs font-medium text-gray-500">
@@ -148,7 +182,7 @@ export default function PhotoIntakePage() {
         ))}
       </div>
 
-      {/* Save button — only shown after extraction */}
+      {/* Save button */}
       {formData.name && !loading && (
         <div className="mt-4 flex gap-3">
           <Button
