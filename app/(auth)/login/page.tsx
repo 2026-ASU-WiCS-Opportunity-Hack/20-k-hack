@@ -18,7 +18,7 @@ export default function LoginPage() {
       {/* 왼쪽 브랜드 패널 */}
       <div
         className="hidden lg:flex lg:w-1/2 flex-col justify-between p-12 relative"
-        style={{ backgroundImage: 'url(/hero.jpg)', backgroundSize: 'cover', backgroundPosition: 'center' }}
+        style={{ backgroundImage: 'url(/login.jpg)', backgroundSize: 'cover', backgroundPosition: 'center' }}
       >
         <div className="absolute inset-0 bg-gray-900/70" />
         <div className="relative z-10">
@@ -58,7 +58,6 @@ export default function LoginPage() {
       {/* 오른쪽 로그인 패널 */}
       <div className="flex-1 flex items-center justify-center p-8">
         <div className="w-full max-w-md">
-          {/* 모바일용 로고 */}
           <div className="flex items-center gap-2 mb-8 lg:hidden">
             <div className="w-8 h-8 bg-indigo-500 rounded-lg flex items-center justify-center">
               <span className="text-white font-bold text-sm">S</span>
@@ -67,12 +66,8 @@ export default function LoginPage() {
           </div>
 
           <div className="mb-8">
-            <h1 className="text-2xl font-bold text-gray-900 mb-2">
-              Welcome back
-            </h1>
-            <p className="text-gray-500 text-sm">
-              Sign in to access your case management dashboard
-            </p>
+            <h1 className="text-2xl font-bold text-gray-900 mb-2">Welcome back</h1>
+            <p className="text-gray-500 text-sm">Sign in to access your case management dashboard</p>
           </div>
 
           <Button
