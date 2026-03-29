@@ -68,7 +68,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
         {/* Logo */}
         <div className="h-14 flex items-center px-5 border-b border-gray-100">
-          <div className="flex items-center gap-2.5">
+          <Link href="/welcome" className="flex items-center gap-2.5 hover:opacity-80 transition-opacity">
             <div className="w-8 h-8 bg-indigo-600 rounded-xl flex items-center justify-center shadow-sm">
               <span className="text-white font-bold text-sm">S</span>
             </div>
@@ -76,7 +76,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
               <span className="font-bold text-gray-900 text-sm">SafeCase</span>
               <p className="text-xs text-gray-400 leading-none mt-0.5">Case Management</p>
             </div>
-          </div>
+          </Link>
         </div>
 
         {/* Nav label */}
