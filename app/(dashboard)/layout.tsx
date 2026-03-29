@@ -40,10 +40,22 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         .select('role')
         .eq('email', user.email)
         .single()
-      setUserRole(data?.role ?? 'staff')
+
+      // role 없으면 unauthorized
+      if (!data) {
+        router.push('/unauthorized')
+        return
+      }
+
+      setUserRole(data.role)
+
+      // /admin 페이지는 admin만 접근 가능
+      if (pathname === '/admin' && data.role !== 'admin') {
+        router.push('/clients')
+      }
     }
     fetchUser()
-  }, [router])
+  }, [router, pathname])
 
   useEffect(() => {
     const handleClick = (e: MouseEvent) => {
@@ -56,9 +68,10 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   }, [])
 
   const handleLogout = async () => {
-  await supabase.auth.signOut()
-  window.location.href = '/login'
-}
+    await supabase.auth.signOut()
+    window.location.href = '/login'
+  }
+
   return (
     <div className="min-h-screen bg-gray-50 flex">
       <Toaster position="top-right" richColors />
