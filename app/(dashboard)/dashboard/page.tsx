@@ -6,12 +6,17 @@ import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid,
   Tooltip, ResponsiveContainer, LineChart, Line
 } from "recharts";
+import { downloadCSV, exportToCSV } from '@/lib/csv-utils'
+import { Download } from 'lucide-react'
+import { Button } from '@/components/ui/button'
 
 export default function DashboardPage() {
   const [totalClients, setTotalClients] = useState(0);
   const [totalServices, setTotalServices] = useState(0);
   const [serviceByType, setServiceByType] = useState<any[]>([]);
   const [serviceByMonth, setServiceByMonth] = useState<any[]>([]);
+  const [clients, setClients] = useState<any[]>([]);
+  const [exporting, setExporting] = useState(false);
 
   useEffect(() => {
     async function fetchData() {
@@ -48,13 +53,36 @@ export default function DashboardPage() {
             .map(([month, count]) => ({ month, count }))
         );
       }
+
+      // export용 clients 데이터
+      const { data: clientData } = await supabase
+        .from("clients")
+        .select("name, date_of_birth, phone, email, household_size, language, notes")
+        .order("created_at", { ascending: false });
+      setClients(clientData || []);
     }
     fetchData();
   }, []);
 
+  const handleExport = async () => {
+    setExporting(true)
+    try {
+      const csv = exportToCSV(clients)
+      downloadCSV(csv, `safecase_clients_${new Date().toISOString().slice(0, 10)}.csv`)
+    } finally {
+      setExporting(false)
+    }
+  }
+
   return (
     <div className="max-w-4xl mx-auto p-8">
-      <h1 className="text-2xl font-bold mb-6">📊 Dashboard</h1>
+      <div className="flex justify-between items-center mb-6">
+        <h1 className="text-2xl font-bold">📊 Dashboard</h1>
+        <Button variant="outline" onClick={handleExport} disabled={exporting}>
+          <Download className="mr-2 h-4 w-4" />
+          {exporting ? "Exporting…" : "Export Clients CSV"}
+        </Button>
+      </div>
 
       <div className="grid grid-cols-2 gap-4 mb-8">
         <div className="border rounded-lg p-6 text-center">

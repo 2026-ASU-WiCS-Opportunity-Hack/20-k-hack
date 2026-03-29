@@ -9,6 +9,8 @@ import { Label } from '@/components/ui/label'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { supabase } from '@/lib/supabase'
+import { CSVImportExport } from '@/components/csv-import-export'
+import type { ClientCSVRow } from '@/lib/csv-utils'
 
 type Client = {
   id: string
@@ -107,13 +109,16 @@ export default function ClientsPage() {
           <h1 className="text-xl font-semibold text-gray-900">Clients</h1>
           <p className="text-sm text-gray-500 mt-0.5">{clients.length} total clients</p>
         </div>
-        <Button
-          onClick={() => setShowForm(!showForm)}
-          className="bg-indigo-600 hover:bg-indigo-700 text-white gap-2"
-        >
-          <Plus size={15} />
-          New Client
-        </Button>
+        <div className="flex items-center gap-2">
+          <CSVImportExport clients={clients} onImport={async () => { fetchClients() }} />
+          <Button
+            onClick={() => setShowForm(!showForm)}
+            className="bg-indigo-600 hover:bg-indigo-700 text-white gap-2"
+          >
+            <Plus size={15} />
+            New Client
+          </Button>
+        </div>
       </div>
 
       {/* 등록 폼 */}
