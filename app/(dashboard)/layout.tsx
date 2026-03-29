@@ -4,7 +4,7 @@ import { usePathname, useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { supabase } from '@/lib/supabase'
 import {
-  Users, LayoutDashboard, Shield, LogOut, Menu, X, ChevronDown, Camera
+  Users, LayoutDashboard, Shield, LogOut, Menu, X, ChevronDown, Camera, CalendarDays
 } from 'lucide-react'
 import { useState, useEffect, useRef } from 'react'
 import { AiBotPanel } from '@/components/ai-bot-panel'
@@ -12,6 +12,7 @@ import { AiBotPanel } from '@/components/ai-bot-panel'
 const navItems = [
   { href: '/clients', label: 'Clients', icon: Users },
   { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
+  { href: '/calendar', label: 'Calendar', icon: CalendarDays },
   { href: '/photo-intake', label: 'Photo Intake', icon: Camera },
   { href: '/admin', label: 'Admin', icon: Shield },
 ]
@@ -61,7 +62,6 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   return (
     <div className="min-h-screen bg-gray-50 flex">
 
-      {/* 사이드바 */}
       <aside className={`
         fixed inset-y-0 left-0 z-50 w-56 bg-white border-r border-gray-100 flex flex-col
         transform transition-transform duration-200
@@ -191,6 +191,14 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                     >
                       <LayoutDashboard size={14} />
                       Dashboard
+                    </Link>
+                    <Link
+                      href="/calendar"
+                      onClick={() => setProfileOpen(false)}
+                      className="flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-gray-600 hover:bg-gray-50 transition-colors"
+                    >
+                      <CalendarDays size={14} />
+                      Calendar
                     </Link>
                     <Link
                       href="/photo-intake"
