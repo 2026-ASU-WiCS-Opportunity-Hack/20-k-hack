@@ -8,13 +8,14 @@ import {
 } from 'lucide-react'
 import { useState, useEffect, useRef } from 'react'
 import { AiBotPanel } from '@/components/ai-bot-panel'
+import { Toaster } from 'sonner'
 
 const navItems = [
   { href: '/clients', label: 'Clients', icon: Users },
   { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
   { href: '/calendar', label: 'Calendar', icon: CalendarDays },
   { href: '/photo-intake', label: 'Photo Intake', icon: Camera },
-  { href: '/admin', label: 'Admin', icon: Shield },
+  { href: '/admin', label: 'Admin', icon: Shield, adminOnly: true },
 ]
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
@@ -55,12 +56,12 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   }, [])
 
   const handleLogout = async () => {
-    await supabase.auth.signOut()
-    router.push('/login')
-  }
-
+  await supabase.auth.signOut()
+  window.location.href = '/login'
+}
   return (
     <div className="min-h-screen bg-gray-50 flex">
+      <Toaster position="top-right" richColors />
 
       <aside className={`
         fixed inset-y-0 left-0 z-50 w-56 bg-white border-r border-gray-100 flex flex-col
@@ -78,26 +79,28 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         </div>
 
         <nav className="flex-1 p-3 space-y-0.5">
-          {navItems.map(({ href, label, icon: Icon }) => {
-            const active = pathname === href || pathname.startsWith(href + '/')
-            return (
-              <Link
-                key={href}
-                href={href}
-                onClick={() => setSidebarOpen(false)}
-                className={`
-                  flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors
-                  ${active
-                    ? 'bg-indigo-50 text-indigo-700'
-                    : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
-                  }
-                `}
-              >
-                <Icon size={16} />
-                {label}
-              </Link>
-            )
-          })}
+          {navItems
+            .filter(item => !item.adminOnly || userRole === 'admin')
+            .map(({ href, label, icon: Icon }) => {
+              const active = pathname === href || pathname.startsWith(href + '/')
+              return (
+                <Link
+                  key={href}
+                  href={href}
+                  onClick={() => setSidebarOpen(false)}
+                  className={`
+                    flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors
+                    ${active
+                      ? 'bg-indigo-50 text-indigo-700'
+                      : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
+                    }
+                  `}
+                >
+                  <Icon size={16} />
+                  {label}
+                </Link>
+              )
+            })}
         </nav>
 
         <div className="p-3 border-t border-gray-100">
@@ -176,57 +179,34 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                   </div>
 
                   <div className="p-2">
-                    <Link
-                      href="/clients"
-                      onClick={() => setProfileOpen(false)}
-                      className="flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-gray-600 hover:bg-gray-50 transition-colors"
-                    >
-                      <Users size={14} />
-                      My Clients
+                    <Link href="/clients" onClick={() => setProfileOpen(false)}
+                      className="flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-gray-600 hover:bg-gray-50 transition-colors">
+                      <Users size={14} />My Clients
                     </Link>
-                    <Link
-                      href="/dashboard"
-                      onClick={() => setProfileOpen(false)}
-                      className="flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-gray-600 hover:bg-gray-50 transition-colors"
-                    >
-                      <LayoutDashboard size={14} />
-                      Dashboard
+                    <Link href="/dashboard" onClick={() => setProfileOpen(false)}
+                      className="flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-gray-600 hover:bg-gray-50 transition-colors">
+                      <LayoutDashboard size={14} />Dashboard
                     </Link>
-                    <Link
-                      href="/calendar"
-                      onClick={() => setProfileOpen(false)}
-                      className="flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-gray-600 hover:bg-gray-50 transition-colors"
-                    >
-                      <CalendarDays size={14} />
-                      Calendar
+                    <Link href="/calendar" onClick={() => setProfileOpen(false)}
+                      className="flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-gray-600 hover:bg-gray-50 transition-colors">
+                      <CalendarDays size={14} />Calendar
                     </Link>
-                    <Link
-                      href="/photo-intake"
-                      onClick={() => setProfileOpen(false)}
-                      className="flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-gray-600 hover:bg-gray-50 transition-colors"
-                    >
-                      <Camera size={14} />
-                      Photo Intake
+                    <Link href="/photo-intake" onClick={() => setProfileOpen(false)}
+                      className="flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-gray-600 hover:bg-gray-50 transition-colors">
+                      <Camera size={14} />Photo Intake
                     </Link>
                     {userRole === 'admin' && (
-                      <Link
-                        href="/admin"
-                        onClick={() => setProfileOpen(false)}
-                        className="flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-gray-600 hover:bg-gray-50 transition-colors"
-                      >
-                        <Shield size={14} />
-                        Security & Audit
+                      <Link href="/admin" onClick={() => setProfileOpen(false)}
+                        className="flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-gray-600 hover:bg-gray-50 transition-colors">
+                        <Shield size={14} />Security & Audit
                       </Link>
                     )}
                   </div>
 
                   <div className="p-2 border-t border-gray-100">
-                    <button
-                      onClick={handleLogout}
-                      className="flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-red-500 hover:bg-red-50 transition-colors w-full"
-                    >
-                      <LogOut size={14} />
-                      Sign out
+                    <button onClick={handleLogout}
+                      className="flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-red-500 hover:bg-red-50 transition-colors w-full">
+                      <LogOut size={14} />Sign out
                     </button>
                   </div>
                 </div>
