@@ -82,7 +82,7 @@ function ImportDialog({ onImport }: { onImport: (rows: ClientCSVRow[]) => Promis
       <DialogTrigger asChild>
         <Button variant="outline"><Upload className="mr-2 h-4 w-4" />Import CSV</Button>
       </DialogTrigger>
-      <DialogContent className="max-w-2xl">
+      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Import Clients from CSV</DialogTitle>
           <DialogDescription>Upload a CSV file to bulk-add clients.</DialogDescription>
@@ -95,9 +95,9 @@ function ImportDialog({ onImport }: { onImport: (rows: ClientCSVRow[]) => Promis
         <div className="border-2 border-dashed rounded-lg p-8 text-center cursor-pointer hover:bg-muted/50 transition-colors" onClick={() => inputRef.current?.click()}>
           <input ref={inputRef} type="file" accept=".csv" className="hidden" onChange={handleFileChange} />
           {file ? (
-            <div className="flex items-center justify-center gap-2">
-              <FileText className="h-5 w-5 text-muted-foreground" />
-              <span className="font-medium">{file.name}</span>
+            <div className="flex items-center justify-center gap-2 flex-wrap">
+              <FileText className="h-5 w-5 text-muted-foreground shrink-0" />
+              <span className="font-medium truncate max-w-[200px]">{file.name}</span>
               <Badge variant="secondary">{preview.length} rows preview</Badge>
               <button onClick={(e) => { e.stopPropagation(); reset(); }}>
                 <X className="h-4 w-4 text-muted-foreground hover:text-destructive" />
@@ -124,22 +124,22 @@ function ImportDialog({ onImport }: { onImport: (rows: ClientCSVRow[]) => Promis
 
         {preview.length > 0 && parseErrors.length === 0 && (
           <div className="overflow-x-auto rounded border text-sm">
-            <table className="w-full">
+            <table className="w-full min-w-[480px]">
               <thead className="bg-muted">
                 <tr>
-                  <th className="px-3 py-2 text-left">Name</th>
-                  <th className="px-3 py-2 text-left">Phone</th>
-                  <th className="px-3 py-2 text-left">Email</th>
-                  <th className="px-3 py-2 text-left">Language</th>
+                  <th className="px-3 py-2 text-left whitespace-nowrap">Name</th>
+                  <th className="px-3 py-2 text-left whitespace-nowrap">Phone</th>
+                  <th className="px-3 py-2 text-left whitespace-nowrap">Email</th>
+                  <th className="px-3 py-2 text-left whitespace-nowrap">Language</th>
                 </tr>
               </thead>
               <tbody>
                 {preview.map((row, i) => (
                   <tr key={i} className="border-t">
-                    <td className="px-3 py-2">{row.name}</td>
-                    <td className="px-3 py-2">{row.phone}</td>
-                    <td className="px-3 py-2">{row.email}</td>
-                    <td className="px-3 py-2">{row.language}</td>
+                    <td className="px-3 py-2 whitespace-nowrap">{row.name}</td>
+                    <td className="px-3 py-2 whitespace-nowrap">{row.phone}</td>
+                    <td className="px-3 py-2 break-all">{row.email}</td>
+                    <td className="px-3 py-2 whitespace-nowrap">{row.language}</td>
                   </tr>
                 ))}
               </tbody>
