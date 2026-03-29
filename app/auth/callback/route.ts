@@ -14,7 +14,7 @@ export async function GET(request: Request) {
     const { data } = await supabase.auth.exchangeCodeForSession(code)
 
     if (!data.session) {
-      return NextResponse.redirect(`${origin}/clients`)
+      return NextResponse.redirect(`${origin}/welcome`)  // ← 변경
     }
 
     const email = data.session.user.email
@@ -30,13 +30,12 @@ export async function GET(request: Request) {
       .eq('email', email)
       .single()
 
-    // 역할 없으면 그냥 clients로 (unauthorized 없이)
     if (!roleData || roleData.role === 'staff') {
-      return NextResponse.redirect(`${origin}/clients`)
+      return NextResponse.redirect(`${origin}/welcome`)  // ← 변경
     }
 
-    return NextResponse.redirect(`${origin}/dashboard`)
+    return NextResponse.redirect(`${origin}/welcome`)    // ← 변경 (admin도 welcome으로)
   }
 
-  return NextResponse.redirect(`${origin}/clients`)
+  return NextResponse.redirect(`${origin}/welcome`)      // ← 변경
 }

@@ -69,12 +69,12 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         lg:translate-x-0 lg:static lg:flex
       `}>
         <div className="h-14 flex items-center px-5 border-b border-gray-100">
-          <div className="flex items-center gap-2">
+          <Link href="/welcome" className="flex items-center gap-2">
             <div className="w-7 h-7 bg-indigo-600 rounded-lg flex items-center justify-center">
               <span className="text-white font-bold text-xs">S</span>
             </div>
             <span className="font-semibold text-gray-900">SafeCase</span>
-          </div>
+          </Link>
         </div>
 
         <nav className="flex-1 p-3 space-y-0.5">
@@ -126,12 +126,12 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           >
             {sidebarOpen ? <X size={20} /> : <Menu size={20} />}
           </button>
-          <div className="flex items-center gap-2 lg:hidden">
+          <Link href="/welcome" className="flex items-center gap-2 lg:hidden">
             <div className="w-6 h-6 bg-indigo-600 rounded-md flex items-center justify-center">
               <span className="text-white font-bold text-xs">S</span>
             </div>
             <span className="font-semibold text-gray-900 text-sm">SafeCase</span>
-          </div>
+          </Link>
           <div className="hidden lg:block" />
           <div className="flex items-center gap-3">
             <div className="relative" ref={profileRef}>
