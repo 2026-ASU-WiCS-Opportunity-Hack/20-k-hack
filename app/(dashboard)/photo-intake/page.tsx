@@ -21,6 +21,7 @@ function AnalyzingDots() {
 export default function PhotoIntakePage() {
   const router = useRouter();
   const [image, setImage] = useState<string | null>(null);
+  const [translationToast, setTranslationToast] = useState<string | null>(null);
   const isMobile = typeof navigator !== "undefined" && /Mobi|Android|iPhone/i.test(navigator.userAgent);
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -41,7 +42,13 @@ export default function PhotoIntakePage() {
         body: JSON.stringify({ imageBase64: base64, mimeType: mime }),
       });
       const data = await res.json();
-      if (data.success) setFormData(data.data);
+      if (data.success) {
+        setFormData(data.data);
+        if (data.detectedLanguage && data.detectedLanguage !== "English") {
+          setTranslationToast(`✅ Translated from ${data.detectedLanguage} to English`);
+          setTimeout(() => setTranslationToast(null), 4000);
+        }
+      }
     } catch (err) {
       console.error(err);
     } finally {
@@ -98,6 +105,12 @@ export default function PhotoIntakePage() {
 
   return (
     <div className="max-w-2xl mx-auto p-8">
+      {/* Translation toast */}
+      {translationToast && (
+        <div className="fixed top-5 right-5 z-50 flex items-center gap-2 bg-green-600 text-white text-sm font-medium px-4 py-3 rounded-xl shadow-lg animate-bounce">
+          {translationToast}
+        </div>
+      )}
       <div className="mb-6">
         <h1 className="text-xl font-semibold text-gray-900">📸 Photo-to-Intake</h1>
         <div className="text-sm text-gray-500 mt-1">

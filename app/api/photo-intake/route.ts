@@ -35,8 +35,11 @@ export async function POST(request: NextRequest) {
   "gender": "",
   "language": "",
   "household_size": "",
-  "notes": ""
+  "notes": "",
+  "detectedLanguage": ""
 }
+The form may be written in ANY language (Spanish, Korean, Arabic, Chinese, etc.). Translate ALL extracted fields to English.
+For "detectedLanguage", write the name of the language the form was written in (e.g. "Spanish", "Korean", "English").
 Fill in whatever is visible. Leave empty string if not found.`,
             },
           ],
@@ -48,7 +51,8 @@ Fill in whatever is visible. Leave empty string if not found.`,
     const clean = text.replace(/```json|```/g, "").trim();
     const extracted = JSON.parse(clean);
 
-    return NextResponse.json({ success: true, data: extracted });
+    const { detectedLanguage, ...formFields } = extracted;
+    return NextResponse.json({ success: true, data: formFields, detectedLanguage });
   } catch (error) {
     console.error(error);
     return NextResponse.json(
