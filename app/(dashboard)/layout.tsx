@@ -4,13 +4,14 @@ import { usePathname, useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { supabase } from '@/lib/supabase'
 import {
-  Users, LayoutDashboard, Shield, LogOut, Menu, X, ChevronDown
+  Users, LayoutDashboard, Shield, LogOut, Menu, X, ChevronDown, Camera
 } from 'lucide-react'
 import { useState, useEffect, useRef } from 'react'
 
 const navItems = [
   { href: '/clients', label: 'Clients', icon: Users },
   { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
+  { href: '/photo-intake', label: 'Photo Intake', icon: Camera },
   { href: '/admin', label: 'Admin', icon: Shield },
 ]
 
@@ -189,6 +190,14 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                     >
                       <LayoutDashboard size={14} />
                       Dashboard
+                    </Link>
+                    <Link
+                      href="/photo-intake"
+                      onClick={() => setProfileOpen(false)}
+                      className="flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-gray-600 hover:bg-gray-50 transition-colors"
+                    >
+                      <Camera size={14} />
+                      Photo Intake
                     </Link>
                     {userRole === 'admin' && (
                       <Link
