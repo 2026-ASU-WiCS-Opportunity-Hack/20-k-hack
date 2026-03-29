@@ -118,27 +118,28 @@ export default function ClientsPage() {
   const activeCount = clients.filter(c => c.is_active).length
   const multilingualCount = clients.filter(c => c.language && c.language !== 'English').length
   const totalHousehold = clients.reduce((sum, c) => sum + (c.household_size || 0), 0)
-
   const isOverdue = (due: string) => new Date(due) < new Date()
 
   return (
-    <div className="p-6 max-w-6xl mx-auto">
+    <div className="p-4 sm:p-6 max-w-6xl mx-auto">
 
       {/* Header */}
-      <div className="flex justify-between items-center mb-6">
+      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3 mb-6">
         <div>
           <h1 className="text-xl font-semibold text-gray-900">Clients</h1>
           <p className="text-sm text-gray-400 mt-0.5">{clients.length} total clients</p>
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex flex-wrap items-center gap-2">
           {currentUserEmail && (
-            <div className="flex items-center gap-2 text-xs text-gray-400 bg-gray-50 border border-gray-100 rounded-lg px-3 py-1.5">
+            <div className="hidden sm:flex items-center gap-2 text-xs text-gray-400 bg-gray-50 border border-gray-100 rounded-lg px-3 py-1.5">
               <div className="w-5 h-5 bg-indigo-100 rounded-full flex items-center justify-center">
                 <span className="text-indigo-600 font-semibold text-xs">{currentUserEmail[0].toUpperCase()}</span>
               </div>
               <span>{currentUserEmail}</span>
               <span className="text-gray-300">·</span>
-              <span className="text-green-500 flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full bg-green-500 inline-block" />Online</span>
+              <span className="text-green-500 flex items-center gap-1">
+                <span className="w-1.5 h-1.5 rounded-full bg-green-500 inline-block" />Online
+              </span>
             </div>
           )}
           <CSVImportExport
@@ -151,21 +152,21 @@ export default function ClientsPage() {
         </div>
       </div>
 
-      {/* Stat cards */}
-      <div className="grid grid-cols-4 gap-3 mb-6">
+      {/* Stat cards — 2x2 on mobile, 4x1 on desktop */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">
         {[
           { icon: Users, label: 'Total Clients', value: clients.length, color: 'text-indigo-600 bg-indigo-50' },
           { icon: Activity, label: 'Active', value: activeCount, color: 'text-green-600 bg-green-50' },
           { icon: Globe, label: 'Multilingual', value: multilingualCount, color: 'text-purple-600 bg-purple-50' },
           { icon: Home, label: 'People Served', value: totalHousehold, color: 'text-orange-600 bg-orange-50' },
         ].map(({ icon: Icon, label, value, color }) => (
-          <div key={label} className="bg-white border border-gray-100 rounded-xl px-4 py-3 flex items-center gap-3 shadow-sm">
-            <div className={`w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0 ${color}`}>
-              <Icon size={16} />
+          <div key={label} className="bg-white border border-gray-100 rounded-xl px-3 py-3 flex items-center gap-3 shadow-sm">
+            <div className={`w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 ${color}`}>
+              <Icon size={15} />
             </div>
             <div>
               <p className="text-xs text-gray-400">{label}</p>
-              <p className="text-xl font-semibold text-gray-900 leading-tight">{value}</p>
+              <p className="text-lg font-semibold text-gray-900 leading-tight">{value}</p>
             </div>
           </div>
         ))}
@@ -177,7 +178,7 @@ export default function ClientsPage() {
           <CardHeader className="pb-3">
             <CardTitle className="text-base">Register New Client</CardTitle>
           </CardHeader>
-          <CardContent className="grid grid-cols-2 gap-4">
+          <CardContent className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             {[
               { label: 'Full Name *', key: 'name', placeholder: 'Maria Garcia' },
               { label: 'Phone', key: 'phone', placeholder: '480-555-0193' },
@@ -195,11 +196,11 @@ export default function ClientsPage() {
               <Label className="text-xs text-gray-500 mb-1">Date of Birth</Label>
               <Input type="date" value={form.date_of_birth} onChange={e => setForm({ ...form, date_of_birth: e.target.value })} />
             </div>
-            <div className="col-span-2">
+            <div className="col-span-1 sm:col-span-2">
               <Label className="text-xs text-gray-500 mb-1">Notes</Label>
               <Input value={form.notes} onChange={e => setForm({ ...form, notes: e.target.value })} placeholder="Initial notes..." />
             </div>
-            <div className="col-span-2 flex gap-2">
+            <div className="col-span-1 sm:col-span-2 flex gap-2">
               <Button onClick={saveClient} className="bg-indigo-600 hover:bg-indigo-700 text-white">Save Client</Button>
               <Button variant="outline" onClick={() => setShowForm(false)}>Cancel</Button>
             </div>
@@ -221,21 +222,19 @@ export default function ClientsPage() {
             {followUps.map(f => {
               const overdue = isOverdue(f.due_date)
               return (
-                <div key={f.id} className={`flex items-center justify-between bg-white border rounded-xl px-4 py-3 shadow-sm transition-all hover:shadow-md ${overdue ? 'border-red-200 bg-red-50/30' : 'border-gray-100'}`}>
-                  <div className="flex items-center gap-3">
-                    <span className={`text-xs px-2.5 py-1 rounded-full font-medium border ${categoryColors[f.category] || categoryColors['Other']}`}>
+                <div key={f.id} className={`flex items-center justify-between bg-white border rounded-xl px-4 py-3 shadow-sm ${overdue ? 'border-red-200 bg-red-50/30' : 'border-gray-100'}`}>
+                  <div className="flex items-start gap-3 min-w-0">
+                    <span className={`text-xs px-2 py-0.5 rounded-full font-medium border flex-shrink-0 ${categoryColors[f.category] || categoryColors['Other']}`}>
                       {f.category}
                     </span>
-                    <div>
-                      <p className="text-sm text-gray-800">{f.note}</p>
-                      <p className={`text-xs mt-0.5 flex items-center gap-1 ${overdue ? 'text-red-500 font-medium' : 'text-gray-400'}`}>
-                        {overdue && <span>⚠</span>}
-                        {f.clients?.name} · Due {new Date(f.due_date).toLocaleDateString()}
-                        {overdue && ' — Overdue'}
+                    <div className="min-w-0">
+                      <p className="text-sm text-gray-800 truncate">{f.note}</p>
+                      <p className={`text-xs mt-0.5 ${overdue ? 'text-red-500 font-medium' : 'text-gray-400'}`}>
+                        {overdue && '⚠ '}{f.clients?.name} · Due {new Date(f.due_date).toLocaleDateString()}{overdue && ' — Overdue'}
                       </p>
                     </div>
                   </div>
-                  <button onClick={() => markDone(f.id)} className="text-gray-300 hover:text-green-500 transition-colors ml-4 flex-shrink-0 hover:scale-110">
+                  <button onClick={() => markDone(f.id)} className="text-gray-300 hover:text-green-500 transition-colors ml-4 flex-shrink-0">
                     <CheckCircle2 size={20} />
                   </button>
                 </div>
@@ -246,24 +245,22 @@ export default function ClientsPage() {
       )}
 
       {/* Search + Filters */}
-      <div className="flex gap-2 mb-4">
+      <div className="flex flex-col sm:flex-row gap-2 mb-4">
         <div className="relative flex-1">
           <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
           <Input placeholder="Search clients..." value={search}
             onChange={e => setSearch(e.target.value)} className="pl-9" />
         </div>
-        <select
-          value={langFilter} onChange={e => setLangFilter(e.target.value)}
-          className="text-sm border border-gray-200 rounded-lg px-3 py-2 text-gray-600 bg-white focus:outline-none focus:ring-2 focus:ring-indigo-200"
-        >
-          {languages.map(l => <option key={l}>{l}</option>)}
-        </select>
-        <select
-          value={statusFilter} onChange={e => setStatusFilter(e.target.value)}
-          className="text-sm border border-gray-200 rounded-lg px-3 py-2 text-gray-600 bg-white focus:outline-none focus:ring-2 focus:ring-indigo-200"
-        >
-          {['All', 'Active', 'Inactive'].map(s => <option key={s}>{s}</option>)}
-        </select>
+        <div className="flex gap-2">
+          <select value={langFilter} onChange={e => setLangFilter(e.target.value)}
+            className="flex-1 text-sm border border-gray-200 rounded-lg px-3 py-2 text-gray-600 bg-white focus:outline-none">
+            {languages.map(l => <option key={l}>{l}</option>)}
+          </select>
+          <select value={statusFilter} onChange={e => setStatusFilter(e.target.value)}
+            className="flex-1 text-sm border border-gray-200 rounded-lg px-3 py-2 text-gray-600 bg-white focus:outline-none">
+            {['All', 'Active', 'Inactive'].map(s => <option key={s}>{s}</option>)}
+          </select>
+        </div>
       </div>
 
       {/* Table */}
@@ -272,21 +269,20 @@ export default function ClientsPage() {
       ) : filtered.length === 0 ? (
         <div className="text-center text-gray-400 py-12 text-sm">No clients found.</div>
       ) : (
-        <div className="bg-white border border-gray-100 rounded-xl shadow-sm overflow-hidden">
+        <div className="bg-white border border-gray-100 rounded-xl shadow-sm overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-gray-100 bg-gray-50/80">
                 <th className="text-left px-4 py-3 text-xs font-medium text-gray-400 uppercase tracking-wide">Name</th>
-                <th className="text-left px-4 py-3 text-xs font-medium text-gray-400 uppercase tracking-wide">Phone</th>
+                <th className="text-left px-4 py-3 text-xs font-medium text-gray-400 uppercase tracking-wide hidden sm:table-cell">Phone</th>
                 <th className="text-left px-4 py-3 text-xs font-medium text-gray-400 uppercase tracking-wide">Language</th>
-                <th className="text-left px-4 py-3 text-xs font-medium text-gray-400 uppercase tracking-wide">Household</th>
+                <th className="text-left px-4 py-3 text-xs font-medium text-gray-400 uppercase tracking-wide hidden sm:table-cell">Household</th>
                 <th className="text-left px-4 py-3 text-xs font-medium text-gray-400 uppercase tracking-wide">Status</th>
               </tr>
             </thead>
             <tbody>
               {filtered.map((c, i) => (
-                <tr
-                  key={c.id}
+                <tr key={c.id}
                   className={`border-b border-gray-50 hover:bg-indigo-50/40 transition-colors cursor-pointer group ${i === filtered.length - 1 ? 'border-0' : ''}`}
                   onClick={() => window.location.href = `/clients/${c.id}`}
                 >
@@ -298,7 +294,7 @@ export default function ClientsPage() {
                       <span className="font-medium text-gray-900 group-hover:text-indigo-600 transition-colors">{c.name}</span>
                     </div>
                   </td>
-                  <td className="px-4 py-3 text-gray-500">{c.phone || '—'}</td>
+                  <td className="px-4 py-3 text-gray-500 hidden sm:table-cell">{c.phone || '—'}</td>
                   <td className="px-4 py-3">
                     {c.language ? (
                       <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${languageColors[c.language] || 'bg-gray-50 text-gray-600'}`}>
@@ -306,7 +302,7 @@ export default function ClientsPage() {
                       </span>
                     ) : '—'}
                   </td>
-                  <td className="px-4 py-3 text-gray-500">{c.household_size || '—'}</td>
+                  <td className="px-4 py-3 text-gray-500 hidden sm:table-cell">{c.household_size || '—'}</td>
                   <td className="px-4 py-3">
                     <Badge variant={c.is_active ? 'default' : 'secondary'}
                       className={c.is_active ? 'bg-green-100 text-green-700 hover:bg-green-100 border-0' : 'bg-gray-100 text-gray-500 border-0'}>

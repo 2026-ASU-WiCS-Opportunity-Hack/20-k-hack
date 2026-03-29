@@ -104,7 +104,6 @@ export default function CalendarPage() {
     return d >= today && d <= weekLater
   }).slice(0, 5)
 
-  // 오늘/내일 reminder
   const todayAppts = getAppointmentsForDate(todayStr)
   const tomorrowAppts = getAppointmentsForDate(tomorrowStr)
   const reminderAppts = [...todayAppts.map(a => ({ ...a, when: 'today' })), ...tomorrowAppts.map(a => ({ ...a, when: 'tomorrow' }))]
@@ -113,9 +112,9 @@ export default function CalendarPage() {
     clients.find(c => c.id === a.client_id)?.name || a.clients?.name || ''
 
   return (
-    <div className="p-6 max-w-6xl mx-auto">
+    <div className="p-4 sm:p-6 max-w-6xl mx-auto">
 
-      {/* 오늘/내일 reminder 배너 */}
+      {/* reminder 배너 */}
       {reminderAppts.length > 0 && !dismissedReminder && (
         <div className="mb-4 bg-amber-50 border border-amber-200 rounded-xl px-4 py-3 flex items-start justify-between gap-3">
           <div className="flex items-start gap-2">
@@ -126,8 +125,7 @@ export default function CalendarPage() {
                   ? `${todayAppts.length} appointment${todayAppts.length > 1 ? 's' : ''} today, ${tomorrowAppts.length} tomorrow`
                   : todayAppts.length > 0
                   ? `${todayAppts.length} appointment${todayAppts.length > 1 ? 's' : ''} today`
-                  : `${tomorrowAppts.length} appointment${tomorrowAppts.length > 1 ? 's' : ''} tomorrow`
-                }
+                  : `${tomorrowAppts.length} appointment${tomorrowAppts.length > 1 ? 's' : ''} tomorrow`}
               </p>
               <div className="flex flex-wrap gap-2 mt-1">
                 {reminderAppts.map(a => (
@@ -159,14 +157,16 @@ export default function CalendarPage() {
           className="bg-indigo-600 hover:bg-indigo-700 text-white gap-2"
         >
           <Plus size={15} />
-          New Appointment
+          <span className="hidden sm:inline">New Appointment</span>
+          <span className="sm:hidden">New</span>
         </Button>
       </div>
 
-      <div className="grid grid-cols-3 gap-6">
-        <div className="col-span-2">
+      {/* 모바일: 세로 스택, 데스크탑: 3컬럼 */}
+      <div className="flex flex-col lg:grid lg:grid-cols-3 gap-6">
+        <div className="lg:col-span-2">
           <div className="bg-white border border-gray-100 rounded-xl shadow-sm overflow-hidden">
-            <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
+            <div className="flex items-center justify-between px-4 sm:px-6 py-4 border-b border-gray-100">
               <button onClick={prevMonth} className="text-gray-400 hover:text-gray-600">
                 <ChevronLeft size={20} />
               </button>
@@ -184,7 +184,7 @@ export default function CalendarPage() {
 
             <div className="grid grid-cols-7">
               {Array.from({ length: firstDay }).map((_, i) => (
-                <div key={`empty-${i}`} className="h-20 border-b border-r border-gray-50" />
+                <div key={`empty-${i}`} className="h-14 sm:h-20 border-b border-r border-gray-50" />
               ))}
               {Array.from({ length: daysInMonth }).map((_, i) => {
                 const day = i + 1
@@ -198,23 +198,24 @@ export default function CalendarPage() {
                   <div
                     key={day}
                     onClick={() => setSelectedDate(dateStr === selectedDate ? null : dateStr)}
-                    className={`h-20 border-b border-r border-gray-50 p-1.5 cursor-pointer transition-colors
-                      ${isSelected ? 'bg-indigo-50' : isTomorrow ? 'bg-amber-50/50' : 'hover:bg-gray-50'}
-                    `}
+                    className={`h-14 sm:h-20 border-b border-r border-gray-50 p-1 sm:p-1.5 cursor-pointer transition-colors
+                      ${isSelected ? 'bg-indigo-50' : isTomorrow ? 'bg-amber-50/50' : 'hover:bg-gray-50'}`}
                   >
-                    <div className={`w-6 h-6 flex items-center justify-center rounded-full text-xs font-medium mb-1
-                      ${isToday ? 'bg-indigo-600 text-white' : 'text-gray-700'}
-                    `}>
+                    <div className={`w-5 h-5 sm:w-6 sm:h-6 flex items-center justify-center rounded-full text-xs font-medium mb-1
+                      ${isToday ? 'bg-indigo-600 text-white' : 'text-gray-700'}`}>
                       {day}
                     </div>
                     <div className="space-y-0.5">
-                      {dayAppts.slice(0, 2).map(a => (
-                        <div key={a.id} className="text-xs bg-indigo-100 text-indigo-700 rounded px-1 truncate">
+                      {dayAppts.slice(0, 1).map(a => (
+                        <div key={a.id} className="text-xs bg-indigo-100 text-indigo-700 rounded px-1 truncate hidden sm:block">
                           {a.appointment_time?.slice(0, 5)} {a.title}
                         </div>
                       ))}
-                      {dayAppts.length > 2 && (
-                        <div className="text-xs text-gray-400">+{dayAppts.length - 2} more</div>
+                      {dayAppts.length > 0 && (
+                        <div className="sm:hidden w-1.5 h-1.5 rounded-full bg-indigo-500 mx-auto" />
+                      )}
+                      {dayAppts.length > 1 && (
+                        <div className="text-xs text-gray-400 hidden sm:block">+{dayAppts.length - 1} more</div>
                       )}
                     </div>
                   </div>
@@ -224,6 +225,7 @@ export default function CalendarPage() {
           </div>
         </div>
 
+        {/* 사이드 패널 */}
         <div className="space-y-4">
           {selectedDate && (
             <div className="bg-white border border-gray-100 rounded-xl shadow-sm p-4">
@@ -236,10 +238,7 @@ export default function CalendarPage() {
                 <div className="space-y-2">
                   {selectedAppointments.map(a => (
                     <div key={a.id} className="bg-indigo-50 rounded-lg p-3 relative">
-                      <button
-                        onClick={() => deleteAppointment(a.id)}
-                        className="absolute top-2 right-2 text-gray-300 hover:text-red-400"
-                      >
+                      <button onClick={() => deleteAppointment(a.id)} className="absolute top-2 right-2 text-gray-300 hover:text-red-400">
                         <X size={13} />
                       </button>
                       <p className="font-medium text-sm text-gray-900 pr-4">{a.title}</p>
@@ -254,9 +253,7 @@ export default function CalendarPage() {
                         </p>
                       )}
                       {a.notes && <p className="text-xs text-gray-400 mt-1">{a.notes}</p>}
-                      <Badge className="mt-2 text-xs bg-green-100 text-green-700 hover:bg-green-100">
-                        {a.status}
-                      </Badge>
+                      <Badge className="mt-2 text-xs bg-green-100 text-green-700 hover:bg-green-100">{a.status}</Badge>
                     </div>
                   ))}
                 </div>
@@ -290,7 +287,7 @@ export default function CalendarPage() {
       </div>
 
       {showForm && (
-        <div className="fixed inset-0 z-50 bg-black/30 flex items-center justify-center">
+        <div className="fixed inset-0 z-50 bg-black/30 flex items-center justify-center p-4">
           <div className="bg-white rounded-2xl shadow-xl p-6 w-full max-w-md">
             <div className="flex justify-between items-center mb-4">
               <h3 className="font-semibold text-gray-900">New Appointment</h3>
@@ -305,15 +302,10 @@ export default function CalendarPage() {
               </div>
               <div>
                 <Label className="text-xs text-gray-500">Client</Label>
-                <select
-                  value={form.client_id}
-                  onChange={e => setForm({...form, client_id: e.target.value})}
-                  className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-indigo-400"
-                >
+                <select value={form.client_id} onChange={e => setForm({...form, client_id: e.target.value})}
+                  className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-indigo-400">
                   <option value="">Select client...</option>
-                  {clients.map(c => (
-                    <option key={c.id} value={c.id}>{c.name}</option>
-                  ))}
+                  {clients.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
                 </select>
               </div>
               <div className="grid grid-cols-2 gap-3">
