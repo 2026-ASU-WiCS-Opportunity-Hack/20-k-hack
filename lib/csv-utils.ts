@@ -37,7 +37,7 @@ export function parseCSV(csvText: string): Promise<{ data: ClientCSVRow[]; error
         });
         resolve({ data: results.data, errors });
       },
-      error: (err) => resolve({ data: [], errors: [err.message] }),
+      error: (err: Error) => resolve({ data: [], errors: [err.message] }),
     });
   });
 }
