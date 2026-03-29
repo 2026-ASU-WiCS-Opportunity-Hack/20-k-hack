@@ -4,9 +4,9 @@ import { usePathname, useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { supabase } from '@/lib/supabase'
 import {
-  Users, LayoutDashboard, Shield, LogOut, Menu, X
+  Users, LayoutDashboard, Shield, LogOut, Menu, X, ChevronDown, User, Mail, Shield as ShieldIcon
 } from 'lucide-react'
-import { useState } from 'react'
+import { useState, useEffect, useRef } from 'react'
 
 const navItems = [
   { href: '/clients', label: 'Clients', icon: Users },
@@ -18,6 +18,38 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const pathname = usePathname()
   const router = useRouter()
   const [sidebarOpen, setSidebarOpen] = useState(false)
+  const [profileOpen, setProfileOpen] = useState(false)
+  const [userEmail, setUserEmail] = useState<string | null>(null)
+  const [userRole, setUserRole] = useState<string | null>(null)
+  const profileRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    const fetchUser = async () => {
+      const { data: { user } } = await supabase.auth.getUser()
+      if (user) {
+        setUserEmail(user.email ?? null)
+        // role 가져오기
+        const { data } = await supabase
+          .from('user_roles')
+          .select('role')
+          .eq('email', user.email)
+          .single()
+        setUserRole(data?.role ?? 'staff')
+      }
+    }
+    fetchUser()
+  }, [])
+
+  // 외부 클릭 시 드롭다운 닫기
+  useEffect(() => {
+    const handleClick = (e: MouseEvent) => {
+      if (profileRef.current && !profileRef.current.contains(e.target as Node)) {
+        setProfileOpen(false)
+      }
+    }
+    document.addEventListener('mousedown', handleClick)
+    return () => document.removeEventListener('mousedown', handleClick)
+  }, [])
 
   const handleLogout = async () => {
     await supabase.auth.signOut()
@@ -106,8 +138,90 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           </div>
           <div className="hidden lg:block" />
           <div className="flex items-center gap-3">
-            <div className="w-7 h-7 bg-indigo-100 rounded-full flex items-center justify-center">
-              <span className="text-indigo-700 font-semibold text-xs">S</span>
+            <div className="relative" ref={profileRef}>
+              <button
+                onClick={() => setProfileOpen(!profileOpen)}
+                className="flex items-center gap-2 hover:bg-gray-50 rounded-lg px-2 py-1.5 transition-colors"
+              >
+                <div className="w-7 h-7 bg-indigo-600 rounded-full flex items-center justify-center">
+                  <span className="text-white font-semibold text-xs">
+                    {userEmail ? userEmail[0].toUpperCase() : 'S'}
+                  </span>
+                </div>
+                <ChevronDown size={14} className="text-gray-400" />
+              </button>
+
+              {/* 드롭다운 */}
+              {profileOpen && (
+                <div className="absolute right-0 top-10 w-64 bg-white border border-gray-100 rounded-xl shadow-lg z-50 overflow-hidden">
+                  {/* 프로필 헤더 */}
+                  <div className="p-4 border-b border-gray-100">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 bg-indigo-600 rounded-full flex items-center justify-center">
+                        <span className="text-white font-bold text-sm">
+                          {userEmail ? userEmail[0].toUpperCase() : 'S'}
+                        </span>
+                      </div>
+                      <div>
+                        <p className="text-sm font-semibold text-gray-900">
+                          {userEmail?.split('@')[0] || 'User'}
+                        </p>
+                        <p className="text-xs text-gray-400">{userEmail}</p>
+                      </div>
+                    </div>
+                    <div className="mt-3 flex items-center gap-2">
+                      <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${
+                        userRole === 'admin'
+                          ? 'bg-indigo-100 text-indigo-700'
+                          : 'bg-green-100 text-green-700'
+                      }`}>
+                        {userRole === 'admin' ? '🛡 Admin' : '👤 Staff'}
+                      </span>
+                      <span className="text-xs text-green-500">● Online</span>
+                    </div>
+                  </div>
+
+                  {/* 메뉴 */}
+                  <div className="p-2">
+                    <Link
+                      href="/clients"
+                      onClick={() => setProfileOpen(false)}
+                      className="flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-gray-600 hover:bg-gray-50 transition-colors"
+                    >
+                      <Users size={14} />
+                      My Clients
+                    </Link>
+                    <Link
+                      href="/dashboard"
+                      onClick={() => setProfileOpen(false)}
+                      className="flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-gray-600 hover:bg-gray-50 transition-colors"
+                    >
+                      <LayoutDashboard size={14} />
+                      Dashboard
+                    </Link>
+                    {userRole === 'admin' && (
+                      <Link
+                        href="/admin"
+                        onClick={() => setProfileOpen(false)}
+                        className="flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-gray-600 hover:bg-gray-50 transition-colors"
+                      >
+                        <Shield size={14} />
+                        Security & Audit
+                      </Link>
+                    )}
+                  </div>
+
+                  <div className="p-2 border-t border-gray-100">
+                    <button
+                      onClick={handleLogout}
+                      className="flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-red-500 hover:bg-red-50 transition-colors w-full"
+                    >
+                      <LogOut size={14} />
+                      Sign out
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         </header>

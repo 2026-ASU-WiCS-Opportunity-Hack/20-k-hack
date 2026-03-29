@@ -8,36 +8,35 @@ export async function GET(request: Request) {
   if (code) {
     const supabase = createClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+    )
+
+    const { data } = await supabase.auth.exchangeCodeForSession(code)
+
+    if (!data.session) {
+      return NextResponse.redirect(`${origin}/clients`)
+    }
+
+    const email = data.session.user.email
+
+    const adminSupabase = createClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
       process.env.SUPABASE_SERVICE_ROLE_KEY!
     )
 
-    const { data: { session } } = await supabase.auth.exchangeCodeForSession(code)
-
-    if (!session) {
-      return NextResponse.redirect(`${origin}/login?error=no_session`)
-    }
-
-    const email = session.user.email
-
-    // Rolec checking in user_roles table
-    const { data: roleData } = await supabase
+    const { data: roleData } = await adminSupabase
       .from('user_roles')
       .select('role')
       .eq('email', email)
       .single()
 
-    if (!roleData) {
-      // unauthorized users → no longer access
-      return NextResponse.redirect(`${origin}/unauthorized`)
-    }
-
-    // Redicrect by roles(staff/admin)
-    if (roleData.role === 'admin') {
-      return NextResponse.redirect(`${origin}/dashboard`)
-    } else {
+    // 역할 없으면 그냥 clients로 (unauthorized 없이)
+    if (!roleData || roleData.role === 'staff') {
       return NextResponse.redirect(`${origin}/clients`)
     }
+
+    return NextResponse.redirect(`${origin}/dashboard`)
   }
 
-  return NextResponse.redirect(`${origin}/login`)
+  return NextResponse.redirect(`${origin}/clients`)
 }

@@ -4,10 +4,10 @@ import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid,
-  Tooltip, ResponsiveContainer, LineChart, Line
+  Tooltip, ResponsiveContainer, LineChart, Line, Area, AreaChart
 } from "recharts";
 import { downloadCSV, exportToCSV } from '@/lib/csv-utils'
-import { Download } from 'lucide-react'
+import { Download, Users, Activity, TrendingUp, Calendar } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 
 export default function DashboardPage() {
@@ -17,6 +17,7 @@ export default function DashboardPage() {
   const [serviceByMonth, setServiceByMonth] = useState<any[]>([]);
   const [clients, setClients] = useState<any[]>([]);
   const [exporting, setExporting] = useState(false);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     async function fetchData() {
@@ -54,12 +55,12 @@ export default function DashboardPage() {
         );
       }
 
-      // export용 clients 데이터
       const { data: clientData } = await supabase
         .from("clients")
         .select("name, date_of_birth, phone, email, household_size, language, notes")
         .order("created_at", { ascending: false });
       setClients(clientData || []);
+      setLoading(false);
     }
     fetchData();
   }, []);
@@ -74,51 +75,135 @@ export default function DashboardPage() {
     }
   }
 
+  const avgPerMonth = serviceByMonth.length > 0
+    ? Math.round(serviceByMonth.reduce((a, b) => a + b.count, 0) / serviceByMonth.length)
+    : 0
+
+  const CustomTooltip = ({ active, payload, label }: any) => {
+    if (active && payload && payload.length) {
+      return (
+        <div className="bg-gray-900 border border-gray-700 rounded-lg px-3 py-2 text-xs">
+          <p className="text-gray-400 mb-1">{label}</p>
+          <p className="text-indigo-400 font-semibold">{payload[0].value} services</p>
+        </div>
+      )
+    }
+    return null
+  }
+
   return (
-    <div className="max-w-4xl mx-auto p-8">
+    <div className="p-6 max-w-6xl mx-auto">
+      {/* 헤더 */}
       <div className="flex justify-between items-center mb-6">
-        <h1 className="text-2xl font-bold">📊 Dashboard</h1>
-        <Button variant="outline" onClick={handleExport} disabled={exporting}>
-          <Download className="mr-2 h-4 w-4" />
-          {exporting ? "Exporting…" : "Export Clients CSV"}
+        <div>
+          <h1 className="text-xl font-semibold text-gray-900">Operations Dashboard</h1>
+          <p className="text-sm text-gray-500 mt-0.5">
+            {new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
+          </p>
+        </div>
+        <Button
+          variant="outline"
+          onClick={handleExport}
+          disabled={exporting}
+          className="gap-2 text-sm"
+        >
+          <Download size={14} />
+          {exporting ? "Exporting…" : "Export CSV"}
         </Button>
       </div>
 
-      <div className="grid grid-cols-2 gap-4 mb-8">
-        <div className="border rounded-lg p-6 text-center">
-          <p className="text-gray-500 text-sm">Total Clients</p>
-          <p className="text-4xl font-bold mt-1">{totalClients}</p>
+      {/* KPI 카드 */}
+      <div className="grid grid-cols-4 gap-4 mb-6">
+        <div className="bg-white border border-gray-100 rounded-xl p-4 shadow-sm">
+          <div className="flex items-center justify-between mb-3">
+            <p className="text-xs text-gray-500 font-medium">Total Clients</p>
+            <div className="w-7 h-7 bg-indigo-50 rounded-lg flex items-center justify-center">
+              <Users size={13} className="text-indigo-600" />
+            </div>
+          </div>
+          <p className="text-2xl font-bold text-gray-900">{totalClients}</p>
+          <p className="text-xs text-green-600 mt-1">● Active</p>
         </div>
-        <div className="border rounded-lg p-6 text-center">
-          <p className="text-gray-500 text-sm">Total Services</p>
-          <p className="text-4xl font-bold mt-1">{totalServices}</p>
+
+        <div className="bg-white border border-gray-100 rounded-xl p-4 shadow-sm">
+          <div className="flex items-center justify-between mb-3">
+            <p className="text-xs text-gray-500 font-medium">Total Services</p>
+            <div className="w-7 h-7 bg-blue-50 rounded-lg flex items-center justify-center">
+              <Activity size={13} className="text-blue-600" />
+            </div>
+          </div>
+          <p className="text-2xl font-bold text-gray-900">{totalServices}</p>
+          <p className="text-xs text-gray-400 mt-1">All time</p>
+        </div>
+
+        <div className="bg-white border border-gray-100 rounded-xl p-4 shadow-sm">
+          <div className="flex items-center justify-between mb-3">
+            <p className="text-xs text-gray-500 font-medium">Avg / Month</p>
+            <div className="w-7 h-7 bg-purple-50 rounded-lg flex items-center justify-center">
+              <TrendingUp size={13} className="text-purple-600" />
+            </div>
+          </div>
+          <p className="text-2xl font-bold text-gray-900">{avgPerMonth}</p>
+          <p className="text-xs text-gray-400 mt-1">Services</p>
+        </div>
+
+        <div className="bg-white border border-gray-100 rounded-xl p-4 shadow-sm">
+          <div className="flex items-center justify-between mb-3">
+            <p className="text-xs text-gray-500 font-medium">Service Types</p>
+            <div className="w-7 h-7 bg-amber-50 rounded-lg flex items-center justify-center">
+              <Calendar size={13} className="text-amber-600" />
+            </div>
+          </div>
+          <p className="text-2xl font-bold text-gray-900">{serviceByType.length}</p>
+          <p className="text-xs text-gray-400 mt-1">Categories</p>
         </div>
       </div>
 
-      <div className="mb-8">
-        <h2 className="text-lg font-semibold mb-4">Services by Type</h2>
-        <ResponsiveContainer width="100%" height={250}>
-          <BarChart data={serviceByType}>
-            <CartesianGrid strokeDasharray="3 3" />
-            <XAxis dataKey="name" />
-            <YAxis />
-            <Tooltip />
-            <Bar dataKey="count" fill="#4f46e5" />
-          </BarChart>
-        </ResponsiveContainer>
-      </div>
+      {/* 차트 영역 */}
+      <div className="grid grid-cols-2 gap-4">
 
-      <div>
-        <h2 className="text-lg font-semibold mb-4">Services Over Time</h2>
-        <ResponsiveContainer width="100%" height={250}>
-          <LineChart data={serviceByMonth}>
-            <CartesianGrid strokeDasharray="3 3" />
-            <XAxis dataKey="month" />
-            <YAxis />
-            <Tooltip />
-            <Line type="monotone" dataKey="count" stroke="#4f46e5" strokeWidth={2} />
-          </LineChart>
-        </ResponsiveContainer>
+        {/* Services Over Time */}
+        <div className="bg-white border border-gray-100 rounded-xl p-5 shadow-sm col-span-2">
+          <div className="flex items-center justify-between mb-4">
+            <div>
+              <h2 className="text-sm font-semibold text-gray-800">Services Over Time</h2>
+              <p className="text-xs text-gray-400 mt-0.5">Monthly service delivery trend</p>
+            </div>
+          </div>
+          <ResponsiveContainer width="100%" height={200}>
+            <AreaChart data={serviceByMonth}>
+              <defs>
+                <linearGradient id="colorCount" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="5%" stopColor="#6366f1" stopOpacity={0.15}/>
+                  <stop offset="95%" stopColor="#6366f1" stopOpacity={0}/>
+                </linearGradient>
+              </defs>
+              <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
+              <XAxis dataKey="month" tick={{ fontSize: 11, fill: '#94a3b8' }} axisLine={false} tickLine={false} />
+              <YAxis tick={{ fontSize: 11, fill: '#94a3b8' }} axisLine={false} tickLine={false} />
+              <Tooltip content={<CustomTooltip />} />
+              <Area type="monotone" dataKey="count" stroke="#6366f1" strokeWidth={2} fill="url(#colorCount)" />
+            </AreaChart>
+          </ResponsiveContainer>
+        </div>
+
+        {/* Services by Type */}
+        <div className="bg-white border border-gray-100 rounded-xl p-5 shadow-sm col-span-2">
+          <div className="mb-4">
+            <h2 className="text-sm font-semibold text-gray-800">Services by Type</h2>
+            <p className="text-xs text-gray-400 mt-0.5">Distribution across service categories</p>
+          </div>
+          <ResponsiveContainer width="100%" height={200}>
+            <BarChart data={serviceByType} barSize={32}>
+              <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" vertical={false} />
+              <XAxis dataKey="name" tick={{ fontSize: 11, fill: '#94a3b8' }} axisLine={false} tickLine={false} />
+              <YAxis tick={{ fontSize: 11, fill: '#94a3b8' }} axisLine={false} tickLine={false} />
+              <Tooltip content={<CustomTooltip />} />
+              <Bar dataKey="count" fill="#6366f1" radius={[4, 4, 0, 0]} />
+            </BarChart>
+          </ResponsiveContainer>
+        </div>
+
       </div>
     </div>
   );

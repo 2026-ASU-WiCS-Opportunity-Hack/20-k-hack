@@ -44,6 +44,7 @@ export default function ClientProfilePage() {
   const [services, setServices] = useState<ServiceEntry[]>([])
   const [loading, setLoading] = useState(true)
   const [showForm, setShowForm] = useState(false)
+  const [currentUserEmail, setCurrentUserEmail] = useState<string | null>(null)
   const [form, setForm] = useState({
     service_type: '', notes: '', staff_name: ''
   })
@@ -64,6 +65,29 @@ export default function ClientProfilePage() {
       .single()
     setClient(data)
     setLoading(false)
+
+    // 로그인 유저 확인 + Audit log 기록
+    try {
+      const { data: { user } } = await supabase.auth.getUser()
+      console.log('Current user:', user?.email)
+      if (user) {
+        setCurrentUserEmail(user.email ?? null)
+        if (data) {
+          await fetch('/api/audit', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              user_email: user.email,
+              action: 'VIEW_CLIENT',
+              record_id: clientId,
+              details: `Viewed ${data.name}'s profile`
+            })
+          })
+        }
+      }
+    } catch (err) {
+      console.error('Auth error:', err)
+    }
   }
 
   const fetchServices = async () => {
@@ -103,7 +127,7 @@ export default function ClientProfilePage() {
       client_id: clientId,
       service_date: new Date().toISOString().split('T')[0],
       service_type: form.service_type,
-      staff_name: form.staff_name,
+      staff_name: form.staff_name || currentUserEmail || 'Staff',
       notes: form.notes,
     }])
 
@@ -153,10 +177,24 @@ export default function ClientProfilePage() {
         </div>
       )}
 
-      {/* 뒤로가기 */}
-      <Button variant="outline" onClick={() => router.push('/clients')} className="mb-4">
-        ← Back to Clients
-      </Button>
+      {/* 뒤로가기 + 현재 유저 */}
+      <div className="flex justify-between items-center mb-4">
+        <Button variant="outline" onClick={() => router.push('/clients')}>
+          ← Back to Clients
+        </Button>
+        {currentUserEmail && (
+          <div className="flex items-center gap-2 text-xs text-gray-400 bg-gray-50 border border-gray-100 rounded-lg px-3 py-1.5">
+            <div className="w-5 h-5 bg-indigo-100 rounded-full flex items-center justify-center">
+              <span className="text-indigo-600 font-semibold text-xs">
+                {currentUserEmail[0].toUpperCase()}
+              </span>
+            </div>
+            <span>{currentUserEmail}</span>
+            <span className="text-gray-300">·</span>
+            <span className="text-green-500">● Access logged</span>
+          </div>
+        )}
+      </div>
 
       {/* 클라이언트 정보 */}
       <Card className="mb-6">
@@ -202,7 +240,7 @@ export default function ClientProfilePage() {
               <Input
                 value={form.staff_name}
                 onChange={e => setForm({...form, staff_name: e.target.value})}
-                placeholder="Staff A"
+                placeholder={currentUserEmail || 'Staff A'}
               />
             </div>
             <div className="col-span-2">

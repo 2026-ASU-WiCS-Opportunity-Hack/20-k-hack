@@ -47,6 +47,7 @@ export default function ClientsPage() {
   const [clients, setClients] = useState<Client[]>([])
   const [followUps, setFollowUps] = useState<FollowUp[]>([])
   const [loading, setLoading] = useState(true)
+  const [currentUserEmail, setCurrentUserEmail] = useState<string | null>(null)
   const [form, setForm] = useState({
     name: '', date_of_birth: '', phone: '',
     email: '', household_size: '', language: 'English', notes: ''
@@ -55,7 +56,17 @@ export default function ClientsPage() {
   useEffect(() => {
     fetchClients()
     fetchFollowUps()
+    fetchCurrentUser()
   }, [])
+
+  const fetchCurrentUser = async () => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser()
+      if (user) setCurrentUserEmail(user.email ?? null)
+    } catch (err) {
+      console.error('Auth error:', err)
+    }
+  }
 
   const fetchClients = async () => {
     const { data } = await supabase
@@ -109,7 +120,20 @@ export default function ClientsPage() {
           <h1 className="text-xl font-semibold text-gray-900">Clients</h1>
           <p className="text-sm text-gray-500 mt-0.5">{clients.length} total clients</p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-3">
+          {/* 로그인 유저 표시 */}
+          {currentUserEmail && (
+            <div className="flex items-center gap-2 text-xs text-gray-400 bg-gray-50 border border-gray-100 rounded-lg px-3 py-1.5">
+              <div className="w-5 h-5 bg-indigo-100 rounded-full flex items-center justify-center">
+                <span className="text-indigo-600 font-semibold text-xs">
+                  {currentUserEmail[0].toUpperCase()}
+                </span>
+              </div>
+              <span>{currentUserEmail}</span>
+              <span className="text-gray-300">·</span>
+              <span className="text-green-500">● Online</span>
+            </div>
+          )}
           <CSVImportExport clients={clients} onImport={async () => { fetchClients() }} />
           <Button
             onClick={() => setShowForm(!showForm)}
