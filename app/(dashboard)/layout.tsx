@@ -30,15 +30,22 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const currentPage = navItems.find(n => pathname === n.href || pathname.startsWith(n.href + '/'))
 
   useEffect(() => {
-    const fetchUser = async () => {
-      const { data: { user } } = await supabase.auth.getUser()
-      if (!user) { router.push('/login'); return }
-      setUserEmail(user.email ?? null)
-      const { data } = await supabase
-        .from('user_roles').select('role').eq('email', user.email).single()
-      setUserRole(data?.role ?? 'staff')
-    }
-    fetchUser()
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      if (event === 'INITIAL_SESSION') {
+        if (!session) {
+          router.push('/login')
+        } else {
+          setUserEmail(session.user.email ?? null)
+          supabase
+            .from('user_roles')
+            .select('role')
+            .eq('email', session.user.email)
+            .single()
+            .then(({ data }) => setUserRole(data?.role ?? 'staff'))
+        }
+      }
+    })
+    return () => subscription.unsubscribe()
   }, [router])
 
   useEffect(() => {
