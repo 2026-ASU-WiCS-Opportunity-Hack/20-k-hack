@@ -20,14 +20,9 @@ function ExportButton({ clients }: { clients: Partial<ClientCSVRow>[] }) {
   const handleExport = async () => {
     setLoading(true);
     try {
-      const res = await fetch('/api/clients/export');
-      const blob = await res.blob();
-      const url = URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = url;
-      link.download = `safecase_clients_${new Date().toISOString().slice(0, 10)}.csv`;
-      link.click();
-      URL.revokeObjectURL(url);
+      const { exportToCSV, downloadCSV } = await import('@/lib/csv-utils');
+      const csv = exportToCSV(clients);
+      downloadCSV(csv, `safecase_clients_${new Date().toISOString().slice(0, 10)}.csv`);
     } finally { setLoading(false); }
   };
   return (
