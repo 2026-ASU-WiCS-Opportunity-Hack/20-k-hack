@@ -6,8 +6,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Badge } from '@/components/ui/badge'
-import { Card, CardContent } from '@/components/ui/card'
-import { ChevronLeft, ChevronRight, Plus, X, Clock, User } from 'lucide-react'
+import { ChevronLeft, ChevronRight, Plus, X, Clock, User, Bell } from 'lucide-react'
 
 type Appointment = {
   id: string
@@ -37,6 +36,7 @@ export default function CalendarPage() {
   const [clients, setClients] = useState<Client[]>([])
   const [selectedDate, setSelectedDate] = useState<string | null>(null)
   const [showForm, setShowForm] = useState(false)
+  const [dismissedReminder, setDismissedReminder] = useState(false)
   const [form, setForm] = useState({
     client_id: '', title: '', appointment_date: '',
     appointment_time: '', staff_name: '', notes: ''
@@ -80,12 +80,14 @@ export default function CalendarPage() {
     fetchAppointments()
   }
 
-  // 캘린더 날짜 계산
   const year = currentDate.getFullYear()
   const month = currentDate.getMonth()
   const firstDay = new Date(year, month, 1).getDay()
   const daysInMonth = new Date(year, month + 1, 0).getDate()
   const todayStr = today.toISOString().split('T')[0]
+  const tomorrow = new Date(today)
+  tomorrow.setDate(tomorrow.getDate() + 1)
+  const tomorrowStr = tomorrow.toISOString().split('T')[0]
 
   const prevMonth = () => setCurrentDate(new Date(year, month - 1, 1))
   const nextMonth = () => setCurrentDate(new Date(year, month + 1, 1))
@@ -95,16 +97,55 @@ export default function CalendarPage() {
 
   const selectedAppointments = selectedDate ? getAppointmentsForDate(selectedDate) : []
 
-  // 이번 주 upcoming appointments
   const weekLater = new Date(today)
   weekLater.setDate(weekLater.getDate() + 7)
   const upcoming = appointments.filter(a => {
-    const d = new Date(a.appointment_date)
+    const d = new Date(a.appointment_date + 'T00:00:00')
     return d >= today && d <= weekLater
   }).slice(0, 5)
 
+  // 오늘/내일 reminder
+  const todayAppts = getAppointmentsForDate(todayStr)
+  const tomorrowAppts = getAppointmentsForDate(tomorrowStr)
+  const reminderAppts = [...todayAppts.map(a => ({ ...a, when: 'today' })), ...tomorrowAppts.map(a => ({ ...a, when: 'tomorrow' }))]
+
+  const getClientName = (a: Appointment) =>
+    clients.find(c => c.id === a.client_id)?.name || a.clients?.name || ''
+
   return (
     <div className="p-6 max-w-6xl mx-auto">
+
+      {/* 오늘/내일 reminder 배너 */}
+      {reminderAppts.length > 0 && !dismissedReminder && (
+        <div className="mb-4 bg-amber-50 border border-amber-200 rounded-xl px-4 py-3 flex items-start justify-between gap-3">
+          <div className="flex items-start gap-2">
+            <Bell size={16} className="text-amber-500 mt-0.5 flex-shrink-0" />
+            <div>
+              <p className="text-sm font-semibold text-amber-800">
+                {todayAppts.length > 0 && tomorrowAppts.length > 0
+                  ? `${todayAppts.length} appointment${todayAppts.length > 1 ? 's' : ''} today, ${tomorrowAppts.length} tomorrow`
+                  : todayAppts.length > 0
+                  ? `${todayAppts.length} appointment${todayAppts.length > 1 ? 's' : ''} today`
+                  : `${tomorrowAppts.length} appointment${tomorrowAppts.length > 1 ? 's' : ''} tomorrow`
+                }
+              </p>
+              <div className="flex flex-wrap gap-2 mt-1">
+                {reminderAppts.map(a => (
+                  <span key={a.id} className="text-xs text-amber-700 bg-amber-100 px-2 py-0.5 rounded-full">
+                    {a.when === 'today' ? '📅 Today' : '📅 Tomorrow'} · {a.title}
+                    {a.appointment_time && ` · ${a.appointment_time.slice(0, 5)}`}
+                    {getClientName(a) && ` · ${getClientName(a)}`}
+                  </span>
+                ))}
+              </div>
+            </div>
+          </div>
+          <button onClick={() => setDismissedReminder(true)} className="text-amber-400 hover:text-amber-600 flex-shrink-0">
+            <X size={15} />
+          </button>
+        </div>
+      )}
+
       <div className="flex justify-between items-center mb-6">
         <div>
           <h1 className="text-xl font-semibold text-gray-900">Calendar</h1>
@@ -123,32 +164,24 @@ export default function CalendarPage() {
       </div>
 
       <div className="grid grid-cols-3 gap-6">
-        {/* 캘린더 */}
         <div className="col-span-2">
           <div className="bg-white border border-gray-100 rounded-xl shadow-sm overflow-hidden">
-            {/* 헤더 */}
             <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
               <button onClick={prevMonth} className="text-gray-400 hover:text-gray-600">
                 <ChevronLeft size={20} />
               </button>
-              <h2 className="font-semibold text-gray-900">
-                {MONTHS[month]} {year}
-              </h2>
+              <h2 className="font-semibold text-gray-900">{MONTHS[month]} {year}</h2>
               <button onClick={nextMonth} className="text-gray-400 hover:text-gray-600">
                 <ChevronRight size={20} />
               </button>
             </div>
 
-            {/* 요일 헤더 */}
             <div className="grid grid-cols-7 border-b border-gray-100">
               {DAYS.map(d => (
-                <div key={d} className="py-2 text-center text-xs font-medium text-gray-400">
-                  {d}
-                </div>
+                <div key={d} className="py-2 text-center text-xs font-medium text-gray-400">{d}</div>
               ))}
             </div>
 
-            {/* 날짜 그리드 */}
             <div className="grid grid-cols-7">
               {Array.from({ length: firstDay }).map((_, i) => (
                 <div key={`empty-${i}`} className="h-20 border-b border-r border-gray-50" />
@@ -159,13 +192,14 @@ export default function CalendarPage() {
                 const dayAppts = getAppointmentsForDate(dateStr)
                 const isToday = dateStr === todayStr
                 const isSelected = dateStr === selectedDate
+                const isTomorrow = dateStr === tomorrowStr
 
                 return (
                   <div
                     key={day}
                     onClick={() => setSelectedDate(dateStr === selectedDate ? null : dateStr)}
                     className={`h-20 border-b border-r border-gray-50 p-1.5 cursor-pointer transition-colors
-                      ${isSelected ? 'bg-indigo-50' : 'hover:bg-gray-50'}
+                      ${isSelected ? 'bg-indigo-50' : isTomorrow ? 'bg-amber-50/50' : 'hover:bg-gray-50'}
                     `}
                   >
                     <div className={`w-6 h-6 flex items-center justify-center rounded-full text-xs font-medium mb-1
@@ -190,9 +224,7 @@ export default function CalendarPage() {
           </div>
         </div>
 
-        {/* 사이드 패널 */}
         <div className="space-y-4">
-          {/* 선택된 날짜 일정 */}
           {selectedDate && (
             <div className="bg-white border border-gray-100 rounded-xl shadow-sm p-4">
               <h3 className="font-medium text-gray-900 text-sm mb-3">
@@ -211,9 +243,9 @@ export default function CalendarPage() {
                         <X size={13} />
                       </button>
                       <p className="font-medium text-sm text-gray-900 pr-4">{a.title}</p>
-                      {a.clients?.name && (
+                      {getClientName(a) && (
                         <p className="text-xs text-indigo-600 mt-0.5 flex items-center gap-1">
-                          <User size={11} /> {a.clients.name}
+                          <User size={11} /> {getClientName(a)}
                         </p>
                       )}
                       {a.appointment_time && (
@@ -232,7 +264,6 @@ export default function CalendarPage() {
             </div>
           )}
 
-          {/* Upcoming this week */}
           <div className="bg-white border border-gray-100 rounded-xl shadow-sm p-4">
             <h3 className="font-medium text-gray-900 text-sm mb-3">Upcoming (7 days)</h3>
             {upcoming.length === 0 ? (
@@ -248,7 +279,7 @@ export default function CalendarPage() {
                     </div>
                     <div>
                       <p className="text-xs font-medium text-gray-800">{a.title}</p>
-                      <p className="text-xs text-gray-400">{a.clients?.name} · {a.appointment_time?.slice(0, 5)}</p>
+                      <p className="text-xs text-gray-400">{getClientName(a)} · {a.appointment_time?.slice(0, 5)}</p>
                     </div>
                   </div>
                 ))}
@@ -258,7 +289,6 @@ export default function CalendarPage() {
         </div>
       </div>
 
-      {/* 예약 추가 모달 */}
       {showForm && (
         <div className="fixed inset-0 z-50 bg-black/30 flex items-center justify-center">
           <div className="bg-white rounded-2xl shadow-xl p-6 w-full max-w-md">
