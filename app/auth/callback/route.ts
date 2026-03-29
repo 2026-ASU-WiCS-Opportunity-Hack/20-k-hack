@@ -12,10 +12,7 @@ export async function GET(request: Request) {
     )
 
     const { data } = await supabase.auth.exchangeCodeForSession(code)
-
-    if (!data.session) {
-      return NextResponse.redirect(`${origin}/welcome`)  // ← 변경
-    }
+    if (!data.session) return NextResponse.redirect(`${origin}/welcome`)
 
     const email = data.session.user.email
 
@@ -30,12 +27,15 @@ export async function GET(request: Request) {
       .eq('email', email)
       .single()
 
-    if (!roleData || roleData.role === 'staff') {
-      return NextResponse.redirect(`${origin}/welcome`)  // ← 변경
-    }
+    if (!roleData) return NextResponse.redirect(`${origin}/unauthorized`)
 
-    return NextResponse.redirect(`${origin}/welcome`)    // ← 변경 (admin도 welcome으로)
+    // role에 따라 다른 페이지로 redirect
+    if (roleData.role === 'admin') {
+      return NextResponse.redirect(`${origin}/dashboard`)
+    } else {
+      return NextResponse.redirect(`${origin}/clients`)
+    }
   }
 
-  return NextResponse.redirect(`${origin}/welcome`)      // ← 변경
+  return NextResponse.redirect(`${origin}/welcome`)
 }

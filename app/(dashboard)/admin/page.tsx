@@ -40,6 +40,7 @@ export default function AdminPage() {
   const [loading, setLoading] = useState(true)
   const [customFields, setCustomFields] = useState<CustomField[]>([])
   const [showFieldForm, setShowFieldForm] = useState(false)
+  const [currentUserEmail, setCurrentUserEmail] = useState<string>('')
   const [fieldForm, setFieldForm] = useState({
     field_name: '', field_type: 'text', applies_to: 'client'
   })
@@ -50,6 +51,8 @@ export default function AdminPage() {
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) { router.push('/login'); return }
 
+      setCurrentUserEmail(user.email ?? '')
+
       const { data } = await supabase
         .from('user_roles')
         .select('role')
@@ -57,27 +60,37 @@ export default function AdminPage() {
         .single()
 
       if (data?.role !== 'admin') {
-        toast.error("🔒 Access Denied — You don't have access to this page. Contact your administrator.")
-        setTimeout(() => router.push('/welcome'), 2000)
+        toast.error("🔒 Access Denied — You don't have access to this page.")
+        setTimeout(() => router.push('/clients'), 2000)
         return
       }
 
-      fetchData()
+      fetchData(user.email ?? '')
       fetchCustomFields()
     }
     checkRole()
 
     const channel = supabase
       .channel('admin-realtime')
-      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'audit_logs' }, () => fetchData())
-      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'alerts' }, () => fetchData())
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'audit_logs' }, () => {
+        supabase.auth.getUser().then(({ data: { user } }) => {
+          if (user) fetchData(user.email ?? '')
+        })
+      })
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'alerts' }, () => {
+        supabase.auth.getUser().then(({ data: { user } }) => {
+          if (user) fetchData(user.email ?? '')
+        })
+      })
       .subscribe()
 
     return () => { supabase.removeChannel(channel) }
   }, [])
 
-  const fetchData = async () => {
-    const res = await fetch('/api/audit')
+  const fetchData = async (email: string) => {
+    const res = await fetch('/api/audit', {
+      headers: { 'x-user-email': email }
+    })
     const data = await res.json()
     setLogs(data.logs || [])
     setAlerts(data.alerts || [])
@@ -92,9 +105,13 @@ export default function AdminPage() {
 
   const saveCustomField = async () => {
     if (!fieldForm.field_name.trim()) return
+    const { data: { user } } = await supabase.auth.getUser()
     await fetch('/api/custom-fields', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json',
+        'x-user-email': user?.email ?? ''
+      },
       body: JSON.stringify(fieldForm)
     })
     setShowFieldForm(false)
@@ -104,9 +121,13 @@ export default function AdminPage() {
 
   const deleteCustomField = async (id: string) => {
     if (!confirm('Delete this custom field? All values will be lost.')) return
+    const { data: { user } } = await supabase.auth.getUser()
     await fetch('/api/custom-fields', {
       method: 'DELETE',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json',
+        'x-user-email': user?.email ?? ''
+      },
       body: JSON.stringify({ id })
     })
     fetchCustomFields()
@@ -114,7 +135,7 @@ export default function AdminPage() {
 
   const dismissAlert = async (id: string) => {
     await supabase.from('alerts').update({ is_read: true }).eq('id', id)
-    fetchData()
+    fetchData(currentUserEmail)
   }
 
   const formatTime = (ts: string) => {
@@ -177,6 +198,7 @@ export default function AdminPage() {
         </div>
       </div>
 
+      {/* Configurable Fields */}
       <div className="bg-white border border-gray-100 rounded-xl shadow-sm overflow-hidden mb-6">
         <div className="px-5 py-3 border-b border-gray-100 flex items-center justify-between">
           <div className="flex items-center gap-2">
@@ -184,33 +206,21 @@ export default function AdminPage() {
             <span className="text-sm font-medium text-gray-700">Configurable Fields</span>
             <span className="text-xs text-gray-400 ml-1">— add custom fields to client profiles</span>
           </div>
-          <Button
-            onClick={() => setShowFieldForm(!showFieldForm)}
-            className="bg-indigo-600 hover:bg-indigo-700 text-white gap-1 h-7 text-xs px-3"
-          >
+          <Button onClick={() => setShowFieldForm(!showFieldForm)} className="bg-indigo-600 hover:bg-indigo-700 text-white gap-1 h-7 text-xs px-3">
             <Plus size={12} /> Add Field
           </Button>
         </div>
 
         {showFieldForm && (
           <div className="px-5 py-4 bg-gray-50 border-b border-gray-100">
-            <div className="flex gap-3 items-end">
-              <div className="flex-1">
+            <div className="flex gap-3 items-end flex-wrap">
+              <div className="flex-1 min-w-32">
                 <Label className="text-xs text-gray-500">Field Name *</Label>
-                <Input
-                  value={fieldForm.field_name}
-                  onChange={e => setFieldForm({...fieldForm, field_name: e.target.value})}
-                  placeholder="e.g. Instrument Played"
-                  className="h-8 text-sm"
-                />
+                <Input value={fieldForm.field_name} onChange={e => setFieldForm({...fieldForm, field_name: e.target.value})} placeholder="e.g. Instrument Played" className="h-8 text-sm" />
               </div>
               <div>
                 <Label className="text-xs text-gray-500">Type</Label>
-                <select
-                  value={fieldForm.field_type}
-                  onChange={e => setFieldForm({...fieldForm, field_type: e.target.value})}
-                  className="h-8 border border-gray-200 rounded-lg px-2 text-sm outline-none focus:border-indigo-400"
-                >
+                <select value={fieldForm.field_type} onChange={e => setFieldForm({...fieldForm, field_type: e.target.value})} className="h-8 border border-gray-200 rounded-lg px-2 text-sm outline-none focus:border-indigo-400">
                   <option value="text">Text</option>
                   <option value="number">Number</option>
                   <option value="date">Date</option>
@@ -219,11 +229,7 @@ export default function AdminPage() {
               </div>
               <div>
                 <Label className="text-xs text-gray-500">Applies To</Label>
-                <select
-                  value={fieldForm.applies_to}
-                  onChange={e => setFieldForm({...fieldForm, applies_to: e.target.value})}
-                  className="h-8 border border-gray-200 rounded-lg px-2 text-sm outline-none focus:border-indigo-400"
-                >
+                <select value={fieldForm.applies_to} onChange={e => setFieldForm({...fieldForm, applies_to: e.target.value})} className="h-8 border border-gray-200 rounded-lg px-2 text-sm outline-none focus:border-indigo-400">
                   <option value="client">Client Profile</option>
                   <option value="service">Service Log</option>
                 </select>
@@ -237,9 +243,7 @@ export default function AdminPage() {
         )}
 
         {customFields.length === 0 ? (
-          <div className="text-center text-gray-400 py-8 text-sm">
-            No custom fields yet. Add fields to extend client profiles.
-          </div>
+          <div className="text-center text-gray-400 py-8 text-sm">No custom fields yet.</div>
         ) : (
           <table className="w-full text-sm">
             <thead>
@@ -255,18 +259,11 @@ export default function AdminPage() {
               {customFields.map((f, i) => (
                 <tr key={f.id} className={`border-b border-gray-50 ${i === customFields.length - 1 ? 'border-0' : ''}`}>
                   <td className="px-5 py-3 font-medium text-gray-800">{f.field_name}</td>
-                  <td className="px-5 py-3">
-                    <span className="bg-indigo-50 text-indigo-700 text-xs px-2 py-0.5 rounded-full">{f.field_type}</span>
-                  </td>
-                  <td className="px-5 py-3 text-gray-500 text-xs">
-                    {f.applies_to === 'client' ? 'Client Profile' : 'Service Log'}
-                  </td>
+                  <td className="px-5 py-3"><span className="bg-indigo-50 text-indigo-700 text-xs px-2 py-0.5 rounded-full">{f.field_type}</span></td>
+                  <td className="px-5 py-3 text-gray-500 text-xs">{f.applies_to === 'client' ? 'Client Profile' : 'Service Log'}</td>
                   <td className="px-5 py-3 text-gray-400 text-xs">{new Date(f.created_at).toLocaleDateString()}</td>
                   <td className="px-5 py-3 text-right">
-                    <button
-                      onClick={() => deleteCustomField(f.id)}
-                      className="text-gray-300 hover:text-red-500 transition-colors"
-                    >
+                    <button onClick={() => deleteCustomField(f.id)} className="text-gray-300 hover:text-red-500 transition-colors">
                       <Trash2 size={14} />
                     </button>
                   </td>
@@ -277,6 +274,7 @@ export default function AdminPage() {
         )}
       </div>
 
+      {/* Audit Log */}
       <div className="bg-white border border-gray-100 rounded-xl shadow-sm overflow-hidden">
         <div className="px-5 py-3 border-b border-gray-100 flex items-center justify-between">
           <div className="flex items-center gap-2">
@@ -312,9 +310,7 @@ export default function AdminPage() {
                       <span className="text-gray-700 text-xs">{log.user_email}</span>
                     </div>
                   </td>
-                  <td className="px-5 py-3">
-                    <span className="bg-blue-50 text-blue-700 text-xs px-2 py-0.5 rounded-full">{log.action}</span>
-                  </td>
+                  <td className="px-5 py-3"><span className="bg-blue-50 text-blue-700 text-xs px-2 py-0.5 rounded-full">{log.action}</span></td>
                   <td className="px-5 py-3 text-gray-500 text-xs">{log.details || '—'}</td>
                 </tr>
               ))}

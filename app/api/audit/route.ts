@@ -1,66 +1,51 @@
-import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
+import { NextRequest, NextResponse } from 'next/server'
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
   process.env.SUPABASE_SERVICE_ROLE_KEY!
 )
 
-// 이상 감지 임계값 (데모용: 6개/2분)
-const ALERT_THRESHOLD = 6
-const ALERT_WINDOW_MS = 2 * 60 * 1000
-
-export async function POST(req: NextRequest) {
-  const { user_email, action, record_id, details } = await req.json()
-
-  // 1. Audit log 기록
-  await supabase.from('audit_logs').insert([{
-    user_email,
-    action,
-    record_id,
-    details
-  }])
-
-  // 2. 이상 감지 — 최근 2분 내 접근 횟수 체크
-  const windowStart = new Date(Date.now() - ALERT_WINDOW_MS).toISOString()
-  const { count } = await supabase
-    .from('audit_logs')
-    .select('*', { count: 'exact', head: true })
-    .eq('user_email', user_email)
-    .gte('created_at', windowStart)
-
-  if (count && count >= ALERT_THRESHOLD) {
-    // 중복 알림 방지 — 최근 2분 내 같은 유저 알림이 없을 때만
-    const { data: existingAlert } = await supabase
-      .from('alerts')
-      .select('id')
-      .eq('user_email', user_email)
-      .gte('created_at', windowStart)
-      .single()
-
-    if (!existingAlert) {
-      await supabase.from('alerts').insert([{
-        user_email,
-        message: `⚠️ Unusual activity: ${user_email} accessed ${count} records in 2 minutes`
-      }])
-    }
-  }
-
-  return NextResponse.json({ ok: true })
+async function isAdmin(req: NextRequest): Promise<boolean> {
+  const email = req.headers.get('x-user-email')
+  if (!email) return false
+  const { data } = await supabase.from('user_roles').select('role').eq('email', email).single()
+  return data?.role === 'admin'
 }
 
 export async function GET() {
-  const { data: logs } = await supabase
-    .from('audit_logs')
+  const { data, error } = await supabase
+    .from('custom_field_definitions')
     .select('*')
-    .order('created_at', { ascending: false })
-    .limit(50)
+    .order('created_at', { ascending: true })
 
-  const { data: alerts } = await supabase
-    .from('alerts')
-    .select('*')
-    .eq('is_read', false)
-    .order('created_at', { ascending: false })
+  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+  return NextResponse.json(data ?? [])
+}
 
-  return NextResponse.json({ logs, alerts })
+export async function POST(req: NextRequest) {
+  if (!(await isAdmin(req))) return NextResponse.json({ error: 'Admin only' }, { status: 403 })
+
+  const body = await req.json()
+  const { data, error } = await supabase
+    .from('custom_field_definitions')
+    .insert([body])
+    .select()
+    .single()
+
+  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+  return NextResponse.json(data, { status: 201 })
+}
+
+export async function DELETE(req: NextRequest) {
+  if (!(await isAdmin(req))) return NextResponse.json({ error: 'Admin only' }, { status: 403 })
+
+  const { id } = await req.json()
+  const { error } = await supabase
+    .from('custom_field_definitions')
+    .delete()
+    .eq('id', id)
+
+  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+  return NextResponse.json({ success: true })
 }
