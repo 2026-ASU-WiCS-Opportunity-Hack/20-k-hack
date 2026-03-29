@@ -50,7 +50,7 @@ export default function CalendarPage() {
   const fetchAppointments = async () => {
     const res = await fetch('/api/appointments')
     const data = await res.json()
-    setAppointments(data || [])
+    setAppointments(Array.isArray(data) ? data : [])
   }
 
   const fetchClients = async () => {
