@@ -41,15 +41,16 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         .eq('email', user.email)
         .single()
 
-      // role 없으면 unauthorized
+      // if doesnt have a role-> unauthorized
       if (!data) {
+        await supabase.auth.signOut()
         router.push('/unauthorized')
         return
       }
 
       setUserRole(data.role)
 
-      // /admin 페이지는 admin만 접근 가능
+      // only admain can access admin page
       if (pathname === '/admin' && data.role !== 'admin') {
         router.push('/clients')
       }
