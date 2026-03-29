@@ -7,6 +7,7 @@ import {
   Users, LayoutDashboard, Shield, LogOut, Menu, X, ChevronDown, Camera
 } from 'lucide-react'
 import { useState, useEffect, useRef } from 'react'
+import { AiBotPanel } from '@/components/ai-bot-panel'
 
 const navItems = [
   { href: '/clients', label: 'Clients', icon: Users },
@@ -230,6 +231,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           {children}
         </main>
       </div>
+
+      <AiBotPanel />
     </div>
   )
 }
