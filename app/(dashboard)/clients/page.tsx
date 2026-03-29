@@ -110,7 +110,7 @@ export default function ClientsPage() {
           <p className="text-sm text-gray-500 mt-0.5">{clients.length} total clients</p>
         </div>
         <div className="flex items-center gap-2">
-          <CSVImportExport clients={clients} onImport={async () => { fetchClients() }} />
+          <CSVImportExport clients={clients.map(c => ({...c, household_size: String(c.household_size ?? '')}))} onImport={async () => { fetchClients() }} />
           <Button
             onClick={() => setShowForm(!showForm)}
             className="bg-indigo-600 hover:bg-indigo-700 text-white gap-2"
