@@ -6,6 +6,8 @@ import { supabase } from '@/lib/supabase'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { toast } from 'sonner'
+import { useRouter } from 'next/navigation'
 
 type AuditLog = {
   id: string
@@ -41,10 +43,29 @@ export default function AdminPage() {
   const [fieldForm, setFieldForm] = useState({
     field_name: '', field_type: 'text', applies_to: 'client'
   })
+  const router = useRouter()
 
   useEffect(() => {
-    fetchData()
-    fetchCustomFields()
+    const checkRole = async () => {
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) { router.push('/login'); return }
+
+      const { data } = await supabase
+        .from('user_roles')
+        .select('role')
+        .eq('email', user.email)
+        .single()
+
+      if (data?.role !== 'admin') {
+        toast.error("🔒 Access Denied — You don't have access to this page. Contact your administrator.")
+        setTimeout(() => router.push('/welcome'), 2000)
+        return
+      }
+
+      fetchData()
+      fetchCustomFields()
+    }
+    checkRole()
 
     const channel = supabase
       .channel('admin-realtime')
@@ -104,7 +125,6 @@ export default function AdminPage() {
 
   return (
     <div className="p-6 max-w-6xl mx-auto">
-      {/* 헤더 */}
       <div className="flex items-center gap-3 mb-6">
         <div className="w-9 h-9 bg-indigo-100 rounded-lg flex items-center justify-center">
           <Shield size={18} className="text-indigo-600" />
@@ -120,7 +140,6 @@ export default function AdminPage() {
         )}
       </div>
 
-      {/* 이상 감지 경고 */}
       {alerts.length > 0 && (
         <div className="mb-6 space-y-2">
           {alerts.map(alert => (
@@ -141,7 +160,6 @@ export default function AdminPage() {
         </div>
       )}
 
-      {/* 통계 카드 */}
       <div className="grid grid-cols-3 gap-4 mb-6">
         <div className="bg-white border border-gray-100 rounded-xl p-4 shadow-sm">
           <p className="text-xs text-gray-500 mb-1">Total Access Today</p>
@@ -159,7 +177,6 @@ export default function AdminPage() {
         </div>
       </div>
 
-      {/* Custom Fields 섹션 */}
       <div className="bg-white border border-gray-100 rounded-xl shadow-sm overflow-hidden mb-6">
         <div className="px-5 py-3 border-b border-gray-100 flex items-center justify-between">
           <div className="flex items-center gap-2">
@@ -175,7 +192,6 @@ export default function AdminPage() {
           </Button>
         </div>
 
-        {/* 필드 추가 폼 */}
         {showFieldForm && (
           <div className="px-5 py-4 bg-gray-50 border-b border-gray-100">
             <div className="flex gap-3 items-end">
@@ -220,7 +236,6 @@ export default function AdminPage() {
           </div>
         )}
 
-        {/* 필드 목록 */}
         {customFields.length === 0 ? (
           <div className="text-center text-gray-400 py-8 text-sm">
             No custom fields yet. Add fields to extend client profiles.
@@ -262,7 +277,6 @@ export default function AdminPage() {
         )}
       </div>
 
-      {/* Audit Log 테이블 */}
       <div className="bg-white border border-gray-100 rounded-xl shadow-sm overflow-hidden">
         <div className="px-5 py-3 border-b border-gray-100 flex items-center justify-between">
           <div className="flex items-center gap-2">
@@ -275,9 +289,7 @@ export default function AdminPage() {
         {loading ? (
           <div className="text-center text-gray-400 py-12 text-sm">Loading...</div>
         ) : logs.length === 0 ? (
-          <div className="text-center text-gray-400 py-12 text-sm">
-            No access logs yet.
-          </div>
+          <div className="text-center text-gray-400 py-12 text-sm">No access logs yet.</div>
         ) : (
           <table className="w-full text-sm">
             <thead>
