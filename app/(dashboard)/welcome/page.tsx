@@ -72,24 +72,21 @@ const features = [
 export default function WelcomePage() {
   const [userName, setUserName] = useState<string>('there')
   const [greeting, setGreeting] = useState<string>('Welcome')
-  const [ready, setReady] = useState(false)
   const router = useRouter()
 
   useEffect(() => {
     const hour = new Date().getHours()
     setGreeting(hour < 12 ? 'Good morning' : hour < 17 ? 'Good afternoon' : 'Good evening')
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
-      if (event === 'INITIAL_SESSION') {
-        if (!session) {
-          router.push('/login')
-        } else {
-          setUserName(session.user.email?.split('@')[0] ?? 'there')
-          setReady(true)
-        }
+    const checkSession = async () => {
+      const { data: { session } } = await supabase.auth.getSession()
+      if (!session) {
+        router.push('/login')
+        return
       }
-    })
-    return () => subscription.unsubscribe()
+      setUserName(session.user.email?.split('@')[0] ?? 'there')
+    }
+    checkSession()
   }, [router])
 
   return (
