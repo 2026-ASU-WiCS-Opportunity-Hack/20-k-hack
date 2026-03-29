@@ -6,7 +6,7 @@ import { supabase } from '@/lib/supabase'
 import {
   Users, LayoutDashboard, Shield, LogOut, Menu, X
 } from 'lucide-react'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 
 const navItems = [
   { href: '/clients', label: 'Clients', icon: Users },
@@ -18,6 +18,14 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const pathname = usePathname()
   const router = useRouter()
   const [sidebarOpen, setSidebarOpen] = useState(false)
+
+  useEffect(() => {
+    const checkAuth = async () => {
+      const { data: { session } } = await supabase.auth.getSession()
+      if (!session) router.push('/login')
+    }
+    checkAuth()
+  }, [router])
 
   const handleLogout = async () => {
     await supabase.auth.signOut()
