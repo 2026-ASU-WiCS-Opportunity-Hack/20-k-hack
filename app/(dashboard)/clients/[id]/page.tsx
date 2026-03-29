@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import { Button } from '@/components/ui/button'
@@ -8,7 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { Pencil, Trash2, X, Check } from 'lucide-react'
+import { Pencil, Trash2, X, Check, Upload, FileText, Download } from 'lucide-react'
 
 type Client = {
   id: string
@@ -51,6 +51,12 @@ type CustomFieldValue = {
   custom_field_definitions: { field_name: string; field_type: string } | null
 }
 
+type DocumentFile = {
+  name: string
+  created_at: string
+  metadata?: { size: number }
+}
+
 export default function ClientProfilePage() {
   const params = useParams()
   const clientId = Array.isArray(params.id) ? params.id[0] : params.id as string
@@ -78,18 +84,21 @@ export default function ClientProfilePage() {
   const [customFieldInputs, setCustomFieldInputs] = useState<Record<string, string>>({})
   const [savingCustomFields, setSavingCustomFields] = useState(false)
 
+  // 문서
+  const [documents, setDocuments] = useState<DocumentFile[]>([])
+  const [uploading, setUploading] = useState(false)
+  const fileInputRef = useRef<HTMLInputElement>(null)
+
   useEffect(() => {
     fetchClient()
     fetchServices()
     fetchCustomFields()
+    fetchDocuments()
   }, [clientId])
 
   const fetchClient = async () => {
     const { data } = await supabase
-      .from('clients')
-      .select('*')
-      .eq('id', clientId)
-      .single()
+      .from('clients').select('*').eq('id', clientId).single()
     setClient(data)
     setLoading(false)
 
@@ -110,16 +119,12 @@ export default function ClientProfilePage() {
           })
         }
       }
-    } catch (err) {
-      console.error('Auth error:', err)
-    }
+    } catch (err) { console.error('Auth error:', err) }
   }
 
   const fetchServices = async () => {
     const { data } = await supabase
-      .from('service_entries')
-      .select('*')
-      .eq('client_id', clientId)
+      .from('service_entries').select('*').eq('client_id', clientId)
       .order('service_date', { ascending: false })
     setServices(data || [])
   }
@@ -134,14 +139,50 @@ export default function ClientProfilePage() {
     const values = await valRes.json()
     setCustomFieldValues(Array.isArray(values) ? values : [])
 
-    // 기존 값으로 input 초기화
     const inputs: Record<string, string> = {}
     if (Array.isArray(values)) {
-      values.forEach((v: CustomFieldValue) => {
-        inputs[v.field_id] = v.value || ''
-      })
+      values.forEach((v: CustomFieldValue) => { inputs[v.field_id] = v.value || '' })
     }
     setCustomFieldInputs(inputs)
+  }
+
+  const fetchDocuments = async () => {
+    const res = await fetch(`/api/documents?client_id=${clientId}`)
+    const data = await res.json()
+    setDocuments(Array.isArray(data) ? data : [])
+  }
+
+  const uploadDocument = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    setUploading(true)
+    try {
+      const formData = new FormData()
+      formData.append('file', file)
+      formData.append('client_id', clientId)
+      const res = await fetch('/api/documents/upload', { method: 'POST', body: formData })
+      if (res.ok) fetchDocuments()
+    } finally {
+      setUploading(false)
+      if (fileInputRef.current) fileInputRef.current.value = ''
+    }
+  }
+
+  const downloadDocument = async (fileName: string) => {
+    const { data } = await supabase.storage
+      .from('client-documents')
+      .createSignedUrl(`${clientId}/${fileName}`, 60)
+    if (data?.signedUrl) window.open(data.signedUrl, '_blank')
+  }
+
+  const deleteDocument = async (fileName: string) => {
+    if (!confirm('Delete this document?')) return
+    await fetch('/api/documents', {
+      method: 'DELETE',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ clientId, fileName })
+    })
+    fetchDocuments()
   }
 
   const saveCustomFieldValues = async () => {
@@ -153,18 +194,12 @@ export default function ClientProfilePage() {
           await fetch('/api/custom-fields/values', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              client_id: clientId,
-              field_id: field.id,
-              value
-            })
+            body: JSON.stringify({ client_id: clientId, field_id: field.id, value })
           })
         }
       }
       await fetchCustomFields()
-    } finally {
-      setSavingCustomFields(false)
-    }
+    } finally { setSavingCustomFields(false) }
   }
 
   const detectFollowUps = async (notes: string) => {
@@ -181,11 +216,8 @@ export default function ClientProfilePage() {
         setAiResult(data.followUps)
         setShowAiToast(true)
       }
-    } catch (err) {
-      console.error('AI error:', err)
-    } finally {
-      setAiLoading(false)
-    }
+    } catch (err) { console.error('AI error:', err) }
+    finally { setAiLoading(false) }
   }
 
   const saveService = async () => {
@@ -260,9 +292,7 @@ export default function ClientProfilePage() {
       )}
 
       <div className="flex justify-between items-center mb-4">
-        <Button variant="outline" onClick={() => router.push('/clients')}>
-          ← Back to Clients
-        </Button>
+        <Button variant="outline" onClick={() => router.push('/clients')}>← Back to Clients</Button>
         {currentUserEmail && (
           <div className="flex items-center gap-2 text-xs text-gray-400 bg-gray-50 border border-gray-100 rounded-lg px-3 py-1.5">
             <div className="w-5 h-5 bg-indigo-100 rounded-full flex items-center justify-center">
@@ -296,7 +326,7 @@ export default function ClientProfilePage() {
         </CardContent>
       </Card>
 
-      {/* 커스텀 필드 섹션 */}
+      {/* 커스텀 필드 */}
       {customFields.length > 0 && (
         <Card className="mb-6">
           <CardHeader className="pb-2">
@@ -315,18 +345,76 @@ export default function ClientProfilePage() {
               </div>
             ))}
             <div className="col-span-2">
-              <Button
-                onClick={saveCustomFieldValues}
-                disabled={savingCustomFields}
-                className="bg-indigo-600 hover:bg-indigo-700 text-white"
-                size="sm"
-              >
+              <Button onClick={saveCustomFieldValues} disabled={savingCustomFields} className="bg-indigo-600 hover:bg-indigo-700 text-white" size="sm">
                 {savingCustomFields ? 'Saving...' : 'Save Custom Fields'}
               </Button>
             </div>
           </CardContent>
         </Card>
       )}
+
+      {/* Documents 섹션 */}
+      <Card className="mb-6">
+        <CardHeader className="flex flex-row justify-between items-center pb-3">
+          <CardTitle className="text-sm font-medium text-gray-700">Documents</CardTitle>
+          <div>
+            <input
+              ref={fileInputRef}
+              type="file"
+              className="hidden"
+              onChange={uploadDocument}
+              accept=".pdf,.jpg,.jpeg,.png,.doc,.docx"
+            />
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => fileInputRef.current?.click()}
+              disabled={uploading}
+              className="gap-2 text-xs"
+            >
+              <Upload size={13} />
+              {uploading ? 'Uploading...' : 'Upload File'}
+            </Button>
+          </div>
+        </CardHeader>
+        <CardContent>
+          {documents.length === 0 ? (
+            <p className="text-xs text-gray-400 text-center py-4">No documents uploaded yet.</p>
+          ) : (
+            <div className="space-y-2">
+              {documents.map(doc => (
+                <div key={doc.name} className="flex items-center justify-between bg-gray-50 rounded-lg px-3 py-2">
+                  <div className="flex items-center gap-2">
+                    <FileText size={14} className="text-indigo-500 flex-shrink-0" />
+                    <div>
+                      <p className="text-xs font-medium text-gray-800 truncate max-w-xs">
+                        {doc.name.replace(/^\d+_/, '')}
+                      </p>
+                      <p className="text-xs text-gray-400">
+                        {new Date(doc.created_at).toLocaleDateString()}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => downloadDocument(doc.name)}
+                      className="text-gray-400 hover:text-indigo-500 transition-colors"
+                    >
+                      <Download size={14} />
+                    </button>
+                    <button
+                      onClick={() => deleteDocument(doc.name)}
+                      className="text-gray-400 hover:text-red-500 transition-colors"
+                    >
+                      <Trash2 size={14} />
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </CardContent>
+      </Card>
 
       {/* 서비스 기록 */}
       <div className="flex justify-between items-center mb-4">
