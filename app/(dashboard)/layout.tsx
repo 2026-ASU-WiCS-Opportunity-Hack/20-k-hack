@@ -4,7 +4,7 @@ import { usePathname, useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { supabase } from '@/lib/supabase'
 import {
-  Users, LayoutDashboard, Shield, LogOut, Menu, X, ChevronDown, User, Mail, Shield as ShieldIcon
+  Users, LayoutDashboard, Shield, LogOut, Menu, X, ChevronDown
 } from 'lucide-react'
 import { useState, useEffect, useRef } from 'react'
 
@@ -26,21 +26,21 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   useEffect(() => {
     const fetchUser = async () => {
       const { data: { user } } = await supabase.auth.getUser()
-      if (user) {
-        setUserEmail(user.email ?? null)
-        // role 가져오기
-        const { data } = await supabase
-          .from('user_roles')
-          .select('role')
-          .eq('email', user.email)
-          .single()
-        setUserRole(data?.role ?? 'staff')
+      if (!user) {
+        router.push('/login')
+        return
       }
+      setUserEmail(user.email ?? null)
+      const { data } = await supabase
+        .from('user_roles')
+        .select('role')
+        .eq('email', user.email)
+        .single()
+      setUserRole(data?.role ?? 'staff')
     }
     fetchUser()
-  }, [])
+  }, [router])
 
-  // 외부 클릭 시 드롭다운 닫기
   useEffect(() => {
     const handleClick = (e: MouseEvent) => {
       if (profileRef.current && !profileRef.current.contains(e.target as Node)) {
@@ -66,7 +66,6 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}
         lg:translate-x-0 lg:static lg:flex
       `}>
-        {/* 로고 */}
         <div className="h-14 flex items-center px-5 border-b border-gray-100">
           <div className="flex items-center gap-2">
             <div className="w-7 h-7 bg-indigo-600 rounded-lg flex items-center justify-center">
@@ -76,7 +75,6 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           </div>
         </div>
 
-        {/* 네비게이션 */}
         <nav className="flex-1 p-3 space-y-0.5">
           {navItems.map(({ href, label, icon: Icon }) => {
             const active = pathname === href || pathname.startsWith(href + '/')
@@ -100,7 +98,6 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           })}
         </nav>
 
-        {/* 로그아웃 */}
         <div className="p-3 border-t border-gray-100">
           <button
             onClick={handleLogout}
@@ -112,7 +109,6 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         </div>
       </aside>
 
-      {/* 모바일 오버레이 */}
       {sidebarOpen && (
         <div
           className="fixed inset-0 z-40 bg-black/30 lg:hidden"
@@ -120,9 +116,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         />
       )}
 
-      {/* 메인 컨텐츠 */}
       <div className="flex-1 flex flex-col min-w-0">
-        {/* 헤더 */}
         <header className="h-14 bg-white border-b border-gray-100 flex items-center justify-between px-4 lg:px-6">
           <button
             className="lg:hidden text-gray-500 hover:text-gray-700"
@@ -151,10 +145,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                 <ChevronDown size={14} className="text-gray-400" />
               </button>
 
-              {/* 드롭다운 */}
               {profileOpen && (
                 <div className="absolute right-0 top-10 w-64 bg-white border border-gray-100 rounded-xl shadow-lg z-50 overflow-hidden">
-                  {/* 프로필 헤더 */}
                   <div className="p-4 border-b border-gray-100">
                     <div className="flex items-center gap-3">
                       <div className="w-10 h-10 bg-indigo-600 rounded-full flex items-center justify-center">
@@ -181,7 +173,6 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                     </div>
                   </div>
 
-                  {/* 메뉴 */}
                   <div className="p-2">
                     <Link
                       href="/clients"
@@ -226,7 +217,6 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           </div>
         </header>
 
-        {/* 페이지 컨텐츠 */}
         <main className="flex-1 overflow-auto">
           {children}
         </main>

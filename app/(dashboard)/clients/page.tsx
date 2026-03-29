@@ -1,7 +1,6 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import Link from 'next/link'
 import { CheckCircle2, Plus, Search, AlertCircle } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -10,7 +9,6 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { supabase } from '@/lib/supabase'
 import { CSVImportExport } from '@/components/csv-import-export'
-import type { ClientCSVRow } from '@/lib/csv-utils'
 
 type Client = {
   id: string
@@ -114,14 +112,12 @@ export default function ClientsPage() {
   return (
     <div className="p-6 max-w-6xl mx-auto">
 
-      {/* 페이지 헤더 */}
       <div className="flex justify-between items-center mb-6">
         <div>
           <h1 className="text-xl font-semibold text-gray-900">Clients</h1>
           <p className="text-sm text-gray-500 mt-0.5">{clients.length} total clients</p>
         </div>
         <div className="flex items-center gap-3">
-          {/* 로그인 유저 표시 */}
           {currentUserEmail && (
             <div className="flex items-center gap-2 text-xs text-gray-400 bg-gray-50 border border-gray-100 rounded-lg px-3 py-1.5">
               <div className="w-5 h-5 bg-indigo-100 rounded-full flex items-center justify-center">
@@ -134,7 +130,10 @@ export default function ClientsPage() {
               <span className="text-green-500">● Online</span>
             </div>
           )}
-          <CSVImportExport clients={clients} onImport={async () => { fetchClients() }} />
+          <CSVImportExport
+            clients={clients.map(c => ({...c, household_size: String(c.household_size ?? '')}))}
+            onImport={async () => { fetchClients() }}
+          />
           <Button
             onClick={() => setShowForm(!showForm)}
             className="bg-indigo-600 hover:bg-indigo-700 text-white gap-2"
@@ -145,7 +144,6 @@ export default function ClientsPage() {
         </div>
       </div>
 
-      {/* 등록 폼 */}
       {showForm && (
         <Card className="mb-6 border-indigo-100 shadow-sm">
           <CardHeader className="pb-3">
@@ -188,7 +186,6 @@ export default function ClientsPage() {
         </Card>
       )}
 
-      {/* Pending Follow-ups */}
       {followUps.length > 0 && (
         <div className="mb-6">
           <div className="flex items-center gap-2 mb-3">
@@ -226,7 +223,6 @@ export default function ClientsPage() {
         </div>
       )}
 
-      {/* 검색 */}
       <div className="relative mb-4">
         <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
         <Input
@@ -237,7 +233,6 @@ export default function ClientsPage() {
         />
       </div>
 
-      {/* 클라이언트 테이블 */}
       {loading ? (
         <div className="text-center text-gray-400 py-12 text-sm">Loading...</div>
       ) : filtered.length === 0 ? (
