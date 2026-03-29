@@ -37,6 +37,20 @@ type FollowUp = {
   due_days: number
 }
 
+type CustomField = {
+  id: string
+  field_name: string
+  field_type: string
+  applies_to: string
+}
+
+type CustomFieldValue = {
+  id: string
+  field_id: string
+  value: string
+  custom_field_definitions: { field_name: string; field_type: string } | null
+}
+
 export default function ClientProfilePage() {
   const params = useParams()
   const clientId = Array.isArray(params.id) ? params.id[0] : params.id as string
@@ -53,16 +67,21 @@ export default function ClientProfilePage() {
   const [aiLoading, setAiLoading] = useState(false)
   const [aiResult, setAiResult] = useState<FollowUp[]>([])
   const [showAiToast, setShowAiToast] = useState(false)
-
-  // 수정 상태
   const [editingId, setEditingId] = useState<string | null>(null)
   const [editForm, setEditForm] = useState({
     service_type: '', notes: '', staff_name: '', service_date: ''
   })
 
+  // 커스텀 필드
+  const [customFields, setCustomFields] = useState<CustomField[]>([])
+  const [customFieldValues, setCustomFieldValues] = useState<CustomFieldValue[]>([])
+  const [customFieldInputs, setCustomFieldInputs] = useState<Record<string, string>>({})
+  const [savingCustomFields, setSavingCustomFields] = useState(false)
+
   useEffect(() => {
     fetchClient()
     fetchServices()
+    fetchCustomFields()
   }, [clientId])
 
   const fetchClient = async () => {
@@ -105,6 +124,49 @@ export default function ClientProfilePage() {
     setServices(data || [])
   }
 
+  const fetchCustomFields = async () => {
+    const res = await fetch('/api/custom-fields')
+    const fields = await res.json()
+    const clientFields = (Array.isArray(fields) ? fields : []).filter((f: CustomField) => f.applies_to === 'client')
+    setCustomFields(clientFields)
+
+    const valRes = await fetch(`/api/custom-fields/values?client_id=${clientId}`)
+    const values = await valRes.json()
+    setCustomFieldValues(Array.isArray(values) ? values : [])
+
+    // 기존 값으로 input 초기화
+    const inputs: Record<string, string> = {}
+    if (Array.isArray(values)) {
+      values.forEach((v: CustomFieldValue) => {
+        inputs[v.field_id] = v.value || ''
+      })
+    }
+    setCustomFieldInputs(inputs)
+  }
+
+  const saveCustomFieldValues = async () => {
+    setSavingCustomFields(true)
+    try {
+      for (const field of customFields) {
+        const value = customFieldInputs[field.id]
+        if (value !== undefined) {
+          await fetch('/api/custom-fields/values', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              client_id: clientId,
+              field_id: field.id,
+              value
+            })
+          })
+        }
+      }
+      await fetchCustomFields()
+    } finally {
+      setSavingCustomFields(false)
+    }
+  }
+
   const detectFollowUps = async (notes: string) => {
     setAiLoading(true)
     setShowAiToast(false)
@@ -135,9 +197,7 @@ export default function ClientProfilePage() {
       staff_name: form.staff_name || currentUserEmail || 'Staff',
       notes: form.notes,
     }])
-
     if (form.notes) await detectFollowUps(form.notes)
-
     setShowForm(false)
     setForm({ service_type: '', notes: '', staff_name: '', service_date: new Date().toISOString().split('T')[0] })
     fetchServices()
@@ -151,12 +211,7 @@ export default function ClientProfilePage() {
 
   const startEdit = (s: ServiceEntry) => {
     setEditingId(s.id)
-    setEditForm({
-      service_type: s.service_type,
-      notes: s.notes,
-      staff_name: s.staff_name,
-      service_date: s.service_date,
-    })
+    setEditForm({ service_type: s.service_type, notes: s.notes, staff_name: s.staff_name, service_date: s.service_date })
   }
 
   const saveEdit = async () => {
@@ -194,9 +249,7 @@ export default function ClientProfilePage() {
           {aiResult.map((f, i) => (
             <div key={i} className="bg-indigo-50 rounded-lg p-3 mb-2">
               <div className="flex justify-between items-center mb-1">
-                <span className="text-xs font-semibold text-indigo-600 bg-indigo-100 px-2 py-0.5 rounded-full">
-                  {f.category}
-                </span>
+                <span className="text-xs font-semibold text-indigo-600 bg-indigo-100 px-2 py-0.5 rounded-full">{f.category}</span>
                 <span className="text-xs text-gray-400">Due in {f.due_days} days</span>
               </div>
               <p className="text-sm text-gray-700">{f.note}</p>
@@ -213,9 +266,7 @@ export default function ClientProfilePage() {
         {currentUserEmail && (
           <div className="flex items-center gap-2 text-xs text-gray-400 bg-gray-50 border border-gray-100 rounded-lg px-3 py-1.5">
             <div className="w-5 h-5 bg-indigo-100 rounded-full flex items-center justify-center">
-              <span className="text-indigo-600 font-semibold text-xs">
-                {currentUserEmail[0].toUpperCase()}
-              </span>
+              <span className="text-indigo-600 font-semibold text-xs">{currentUserEmail[0].toUpperCase()}</span>
             </div>
             <span>{currentUserEmail}</span>
             <span className="text-gray-300">·</span>
@@ -224,6 +275,7 @@ export default function ClientProfilePage() {
         )}
       </div>
 
+      {/* 기본 클라이언트 정보 */}
       <Card className="mb-6">
         <CardHeader className="flex flex-row justify-between items-center">
           <CardTitle className="text-xl">{client.name}</CardTitle>
@@ -244,6 +296,39 @@ export default function ClientProfilePage() {
         </CardContent>
       </Card>
 
+      {/* 커스텀 필드 섹션 */}
+      {customFields.length > 0 && (
+        <Card className="mb-6">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium text-gray-700">Custom Fields</CardTitle>
+          </CardHeader>
+          <CardContent className="grid grid-cols-2 gap-4">
+            {customFields.map(field => (
+              <div key={field.id}>
+                <Label className="text-xs text-gray-500">{field.field_name}</Label>
+                <Input
+                  type={field.field_type === 'number' ? 'number' : field.field_type === 'date' ? 'date' : 'text'}
+                  value={customFieldInputs[field.id] || ''}
+                  onChange={e => setCustomFieldInputs(prev => ({ ...prev, [field.id]: e.target.value }))}
+                  placeholder={`Enter ${field.field_name.toLowerCase()}...`}
+                />
+              </div>
+            ))}
+            <div className="col-span-2">
+              <Button
+                onClick={saveCustomFieldValues}
+                disabled={savingCustomFields}
+                className="bg-indigo-600 hover:bg-indigo-700 text-white"
+                size="sm"
+              >
+                {savingCustomFields ? 'Saving...' : 'Save Custom Fields'}
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* 서비스 기록 */}
       <div className="flex justify-between items-center mb-4">
         <h2 className="text-lg font-semibold text-gray-800">Service History</h2>
         <Button onClick={() => setShowForm(!showForm)}>+ Log Service</Button>
@@ -254,38 +339,20 @@ export default function ClientProfilePage() {
           <CardContent className="grid grid-cols-2 gap-4 pt-4">
             <div>
               <Label>Service Type *</Label>
-              <Input
-                value={form.service_type}
-                onChange={e => setForm({...form, service_type: e.target.value})}
-                placeholder="Food Assistance"
-              />
+              <Input value={form.service_type} onChange={e => setForm({...form, service_type: e.target.value})} placeholder="Food Assistance" />
             </div>
             <div>
               <Label>Service Date</Label>
-              <Input
-                type="date"
-                value={form.service_date}
-                onChange={e => setForm({...form, service_date: e.target.value})}
-              />
+              <Input type="date" value={form.service_date} onChange={e => setForm({...form, service_date: e.target.value})} />
             </div>
             <div>
               <Label>Staff Name</Label>
-              <Input
-                value={form.staff_name}
-                onChange={e => setForm({...form, staff_name: e.target.value})}
-                placeholder={currentUserEmail || 'Staff A'}
-              />
+              <Input value={form.staff_name} onChange={e => setForm({...form, staff_name: e.target.value})} placeholder={currentUserEmail || 'Staff A'} />
             </div>
             <div className="col-span-2">
               <Label>Notes</Label>
-              <Input
-                value={form.notes}
-                onChange={e => setForm({...form, notes: e.target.value})}
-                placeholder="e.g. Client mentioned she hasn't eaten today. Will check food assistance next week."
-              />
-              <p className="text-xs text-gray-400 mt-1">
-                💡 Describe what happened and any planned actions — AI will auto-detect follow-ups
-              </p>
+              <Input value={form.notes} onChange={e => setForm({...form, notes: e.target.value})} placeholder="e.g. Client mentioned she hasn't eaten today." />
+              <p className="text-xs text-gray-400 mt-1">💡 AI will auto-detect follow-ups</p>
             </div>
             <div className="col-span-2 flex gap-2">
               <Button onClick={saveService}>Save</Button>
@@ -306,40 +373,23 @@ export default function ClientProfilePage() {
                   <div className="grid grid-cols-2 gap-3">
                     <div>
                       <Label className="text-xs">Service Type</Label>
-                      <Input
-                        value={editForm.service_type}
-                        onChange={e => setEditForm({...editForm, service_type: e.target.value})}
-                      />
+                      <Input value={editForm.service_type} onChange={e => setEditForm({...editForm, service_type: e.target.value})} />
                     </div>
                     <div>
                       <Label className="text-xs">Date</Label>
-                      <Input
-                        type="date"
-                        value={editForm.service_date}
-                        onChange={e => setEditForm({...editForm, service_date: e.target.value})}
-                      />
+                      <Input type="date" value={editForm.service_date} onChange={e => setEditForm({...editForm, service_date: e.target.value})} />
                     </div>
                     <div>
                       <Label className="text-xs">Staff Name</Label>
-                      <Input
-                        value={editForm.staff_name}
-                        onChange={e => setEditForm({...editForm, staff_name: e.target.value})}
-                      />
+                      <Input value={editForm.staff_name} onChange={e => setEditForm({...editForm, staff_name: e.target.value})} />
                     </div>
                     <div>
                       <Label className="text-xs">Notes</Label>
-                      <Input
-                        value={editForm.notes}
-                        onChange={e => setEditForm({...editForm, notes: e.target.value})}
-                      />
+                      <Input value={editForm.notes} onChange={e => setEditForm({...editForm, notes: e.target.value})} />
                     </div>
                     <div className="col-span-2 flex gap-2 mt-1">
-                      <Button size="sm" onClick={saveEdit}>
-                        <Check size={14} className="mr-1" /> Save
-                      </Button>
-                      <Button size="sm" variant="outline" onClick={() => setEditingId(null)}>
-                        <X size={14} className="mr-1" /> Cancel
-                      </Button>
+                      <Button size="sm" onClick={saveEdit}><Check size={14} className="mr-1" /> Save</Button>
+                      <Button size="sm" variant="outline" onClick={() => setEditingId(null)}><X size={14} className="mr-1" /> Cancel</Button>
                     </div>
                   </div>
                 ) : (
@@ -354,16 +404,10 @@ export default function ClientProfilePage() {
                         <p>{s.staff_name}</p>
                       </div>
                       <div className="flex gap-1 ml-2">
-                        <button
-                          onClick={() => startEdit(s)}
-                          className="text-gray-300 hover:text-indigo-500 transition-colors"
-                        >
+                        <button onClick={() => startEdit(s)} className="text-gray-300 hover:text-indigo-500 transition-colors">
                           <Pencil size={15} />
                         </button>
-                        <button
-                          onClick={() => deleteService(s.id)}
-                          className="text-gray-300 hover:text-red-500 transition-colors"
-                        >
+                        <button onClick={() => deleteService(s.id)} className="text-gray-300 hover:text-red-500 transition-colors">
                           <Trash2 size={15} />
                         </button>
                       </div>
