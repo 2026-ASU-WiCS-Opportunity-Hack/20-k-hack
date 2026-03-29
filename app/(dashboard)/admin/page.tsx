@@ -34,6 +34,29 @@ type CustomField = {
   created_at: string
 }
 
+/**
+ * Severity classification based on NIST SP 800-61 Rev 2
+ * (Computer Security Incident Handling Guide)
+ *
+ * Critical — Destructive or exfiltration actions (DELETE, EXPORT)
+ *   → Potential data loss or unauthorized disclosure of PII
+ * High     — Modification of existing records (UPDATE, IMPORT)
+ *   → Integrity risk; data may be altered without authorization
+ * Medium   — New record creation or authentication events (CREATE, LOGIN)
+ *   → Elevated activity that warrants review
+ * Low      — Read-only access (VIEW)
+ *   → Normal operational activity; logged for audit trail
+ */
+const getSeverity = (action: string): { label: string; color: string; dot: string } => {
+  if (action.includes('DELETE') || action.includes('EXPORT'))
+    return { label: 'Critical', color: 'bg-red-100 text-red-700', dot: 'bg-red-500' }
+  if (action.includes('UPDATE') || action.includes('IMPORT'))
+    return { label: 'High', color: 'bg-orange-100 text-orange-700', dot: 'bg-orange-500' }
+  if (action.includes('CREATE') || action.includes('LOGIN'))
+    return { label: 'Medium', color: 'bg-yellow-100 text-yellow-700', dot: 'bg-yellow-500' }
+  return { label: 'Low', color: 'bg-blue-50 text-blue-700', dot: 'bg-blue-400' }
+}
+
 export default function AdminPage() {
   const [logs, setLogs] = useState<AuditLog[]>([])
   const [alerts, setAlerts] = useState<Alert[]>([])
@@ -41,6 +64,7 @@ export default function AdminPage() {
   const [customFields, setCustomFields] = useState<CustomField[]>([])
   const [showFieldForm, setShowFieldForm] = useState(false)
   const [currentUserEmail, setCurrentUserEmail] = useState<string>('')
+  const [severityFilter, setSeverityFilter] = useState<string>('ALL')
   const [fieldForm, setFieldForm] = useState({
     field_name: '', field_type: 'text', applies_to: 'client'
   })
@@ -144,6 +168,15 @@ export default function AdminPage() {
     })
   }
 
+  const criticalCount = logs.filter(l => getSeverity(l.action).label === 'Critical').length
+  const highCount = logs.filter(l => getSeverity(l.action).label === 'High').length
+  const mediumCount = logs.filter(l => getSeverity(l.action).label === 'Medium').length
+  const lowCount = logs.filter(l => getSeverity(l.action).label === 'Low').length
+
+  const filteredLogs = severityFilter === 'ALL'
+    ? logs
+    : logs.filter(l => getSeverity(l.action).label === severityFilter)
+
   return (
     <div className="p-6 max-w-6xl mx-auto">
       <div className="flex items-center gap-3 mb-6">
@@ -152,7 +185,7 @@ export default function AdminPage() {
         </div>
         <div>
           <h1 className="text-xl font-semibold text-gray-900">Security & Audit</h1>
-          <p className="text-sm text-gray-500">Real-time access monitoring</p>
+          <p className="text-sm text-gray-500">Real-time access monitoring · NIST SP 800-61</p>
         </div>
         {alerts.length > 0 && (
           <span className="ml-auto bg-red-100 text-red-700 text-xs font-semibold px-3 py-1 rounded-full animate-pulse">
@@ -168,7 +201,10 @@ export default function AdminPage() {
               <div className="flex items-start gap-3">
                 <AlertTriangle size={18} className="text-red-500 mt-0.5 flex-shrink-0" />
                 <div>
-                  <p className="text-sm font-semibold text-red-700">Unusual Activity Detected</p>
+                  <div className="flex items-center gap-2">
+                    <p className="text-sm font-semibold text-red-700">Unusual Activity Detected</p>
+                    <span className="bg-red-200 text-red-800 text-xs px-2 py-0.5 rounded-full font-medium">Critical</span>
+                  </div>
                   <p className="text-sm text-red-600 mt-0.5">{alert.message}</p>
                   <p className="text-xs text-red-400 mt-1">{formatTime(alert.created_at)}</p>
                 </div>
@@ -181,7 +217,8 @@ export default function AdminPage() {
         </div>
       )}
 
-      <div className="grid grid-cols-3 gap-4 mb-6">
+      {/* Stats */}
+      <div className="grid grid-cols-4 gap-4 mb-6">
         <div className="bg-white border border-gray-100 rounded-xl p-4 shadow-sm">
           <p className="text-xs text-gray-500 mb-1">Total Access Today</p>
           <p className="text-2xl font-bold text-gray-900">{logs.length}</p>
@@ -195,6 +232,15 @@ export default function AdminPage() {
           <p className="text-2xl font-bold text-gray-900">
             {new Set(logs.map(l => l.user_email)).size}
           </p>
+        </div>
+        <div className="bg-white border border-gray-100 rounded-xl p-4 shadow-sm">
+          <p className="text-xs text-gray-500 mb-2">Severity Breakdown</p>
+          <div className="flex flex-wrap gap-1">
+            <span className="bg-red-100 text-red-700 text-xs px-2 py-0.5 rounded-full font-medium">C: {criticalCount}</span>
+            <span className="bg-orange-100 text-orange-700 text-xs px-2 py-0.5 rounded-full font-medium">H: {highCount}</span>
+            <span className="bg-yellow-100 text-yellow-700 text-xs px-2 py-0.5 rounded-full font-medium">M: {mediumCount}</span>
+            <span className="bg-blue-50 text-blue-700 text-xs px-2 py-0.5 rounded-full font-medium">L: {lowCount}</span>
+          </div>
         </div>
       </div>
 
@@ -281,12 +327,27 @@ export default function AdminPage() {
             <Clock size={14} className="text-gray-400" />
             <span className="text-sm font-medium text-gray-700">Live Access Log</span>
           </div>
-          <span className="text-xs text-gray-400">Last 50 entries</span>
+          <div className="flex items-center gap-2">
+            {['ALL', 'Critical', 'High', 'Medium', 'Low'].map(f => (
+              <button
+                key={f}
+                onClick={() => setSeverityFilter(f)}
+                className={`text-xs px-2 py-0.5 rounded-full border transition-all ${
+                  severityFilter === f
+                    ? 'bg-indigo-600 text-white border-indigo-600'
+                    : 'text-gray-500 border-gray-200 hover:border-indigo-300'
+                }`}
+              >
+                {f}
+              </button>
+            ))}
+            <span className="text-xs text-gray-400 ml-2">Last 50 entries</span>
+          </div>
         </div>
 
         {loading ? (
           <div className="text-center text-gray-400 py-12 text-sm">Loading...</div>
-        ) : logs.length === 0 ? (
+        ) : filteredLogs.length === 0 ? (
           <div className="text-center text-gray-400 py-12 text-sm">No access logs yet.</div>
         ) : (
           <table className="w-full text-sm">
@@ -295,25 +356,37 @@ export default function AdminPage() {
                 <th className="text-left px-5 py-3 text-xs font-medium text-gray-500">Time</th>
                 <th className="text-left px-5 py-3 text-xs font-medium text-gray-500">User</th>
                 <th className="text-left px-5 py-3 text-xs font-medium text-gray-500">Action</th>
+                <th className="text-left px-5 py-3 text-xs font-medium text-gray-500">Severity</th>
                 <th className="text-left px-5 py-3 text-xs font-medium text-gray-500">Details</th>
               </tr>
             </thead>
             <tbody>
-              {logs.map((log, i) => (
-                <tr key={log.id} className={`border-b border-gray-50 ${i === logs.length - 1 ? 'border-0' : ''}`}>
-                  <td className="px-5 py-3 text-gray-400 font-mono text-xs">{formatTime(log.created_at)}</td>
-                  <td className="px-5 py-3">
-                    <div className="flex items-center gap-2">
-                      <div className="w-5 h-5 bg-indigo-100 rounded-full flex items-center justify-center">
-                        <User size={10} className="text-indigo-600" />
+              {filteredLogs.map((log, i) => {
+                const severity = getSeverity(log.action)
+                return (
+                  <tr key={log.id} className={`border-b border-gray-50 ${i === filteredLogs.length - 1 ? 'border-0' : ''}`}>
+                    <td className="px-5 py-3 text-gray-400 font-mono text-xs">{formatTime(log.created_at)}</td>
+                    <td className="px-5 py-3">
+                      <div className="flex items-center gap-2">
+                        <div className="w-5 h-5 bg-indigo-100 rounded-full flex items-center justify-center">
+                          <User size={10} className="text-indigo-600" />
+                        </div>
+                        <span className="text-gray-700 text-xs">{log.user_email}</span>
                       </div>
-                      <span className="text-gray-700 text-xs">{log.user_email}</span>
-                    </div>
-                  </td>
-                  <td className="px-5 py-3"><span className="bg-blue-50 text-blue-700 text-xs px-2 py-0.5 rounded-full">{log.action}</span></td>
-                  <td className="px-5 py-3 text-gray-500 text-xs">{log.details || '—'}</td>
-                </tr>
-              ))}
+                    </td>
+                    <td className="px-5 py-3">
+                      <span className="bg-blue-50 text-blue-700 text-xs px-2 py-0.5 rounded-full">{log.action}</span>
+                    </td>
+                    <td className="px-5 py-3">
+                      <div className="flex items-center gap-1.5">
+                        <div className={`w-1.5 h-1.5 rounded-full ${severity.dot}`} />
+                        <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${severity.color}`}>{severity.label}</span>
+                      </div>
+                    </td>
+                    <td className="px-5 py-3 text-gray-500 text-xs">{log.details || '—'}</td>
+                  </tr>
+                )
+              })}
             </tbody>
           </table>
         )}
