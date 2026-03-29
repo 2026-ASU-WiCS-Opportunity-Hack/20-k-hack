@@ -56,10 +56,9 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   }, [])
 
   const handleLogout = async () => {
-    await supabase.auth.signOut()
-    router.push('/login')
-  }
-
+  await supabase.auth.signOut()
+  window.location.href = '/login'
+}
   return (
     <div className="min-h-screen bg-gray-50 flex">
       <Toaster position="top-right" richColors />
